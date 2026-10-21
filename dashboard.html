@@ -89,7 +89,7 @@
   <header>
     <div>
       <h1>YouTube Pipeline — Live Dashboard</h1>
-      <div class="sub">Updated 2026-10-21 18:56 ET</div>
+      <div class="sub">Updated 2026-10-21 19:15 ET</div>
       <div class="sub hidden" id="hdr-refresh"><button id="btn-refresh" class="secondary">Refresh</button> <span id="last-refreshed">Last refreshed: —</span></div>
       <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code>, <code>channel_requests.json</code> and <code>approvals.json</code> there.</div>
     </div>
@@ -722,10 +722,16 @@ function renderQuota(){
     verdict = q.remaining_percent >= q.last_pass_cost_percent * 1.2
       ? "Yes" : "No";
   }
+  let asof = "";
+  if (q.measured_at){
+    const md = new Date(q.measured_at);
+    if (!isNaN(md)) asof = " · as of " + md.toLocaleTimeString([],
+      {hour: "numeric", minute: "2-digit"});
+  }
   el.innerHTML =
     `<b>Muse tokens:</b> ${esc(q.remaining_percent)}% left ` +
     `(resets ${esc(q.resets_at_text)}) · last full pass used: ${cost} · ` +
-    `Enough for a muse run: ${verdict}`;
+    `Enough for a muse run: ${verdict}${asof}`;
 }
 function updateAutoRefresh(){
   const running = !!(lastStatus && lastStatus.pipeline_state &&
