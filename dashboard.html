@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YouTube Pipeline — Live Dashboard</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1d212b; --border:#262b36;
+    --text:#e6e9ef; --muted:#9aa3b2; --accent:#4f8cff; --green:#3fb96b;
+    --amber:#e0a63f; --red:#e5534b; --radius:10px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{font-size:22px;margin:0}
+  h2{font-size:16px;margin:0 0 10px 0}
+  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  section{background:var(--panel);border:1px solid var(--border);
+    border-radius:var(--radius);padding:16px;margin-top:16px}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input[type=text],input[type=password],select,textarea{
+    width:100%;background:var(--panel2);border:1px solid var(--border);
+    color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px}
+  button{background:var(--accent);color:#fff;border:0;border-radius:8px;
+    padding:9px 16px;font-size:14px;cursor:pointer}
+  button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+  button.danger{background:var(--red)}
+  button:disabled{opacity:.5;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .grow{flex:1;min-width:220px}
+  .msg{font-size:13px;margin-top:10px;min-height:18px}
+  .ok{color:var(--green)} .err{color:var(--red)} .warn{color:var(--amber)}
+  .note{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .card{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+  .card h3{margin:0;font-size:15px}
+  .card .handle{color:var(--accent);font-size:13px;text-decoration:none}
+  .kv{font-size:13px;margin-top:8px;line-height:1.55}
+  .kv b{color:var(--muted);font-weight:600}
+  .up{margin:8px 0 0;padding-left:16px;font-size:13px;line-height:1.6}
+  .up a{color:var(--accent);text-decoration:none}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;border:1px solid var(--border)}
+  .badge.on{color:var(--green);border-color:var(--green)}
+  .badge.off{color:var(--red);border-color:var(--red)}
+  .badge.pend{color:var(--amber);border-color:var(--amber)}
+  .radios{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 2px}
+  .radios label{display:flex;gap:6px;align-items:center;color:var(--text);font-size:14px;margin:0}
+  .req{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:13.5px;flex-wrap:wrap}
+  .req:first-of-type{border-top:0}
+  ol.steps{margin:6px 0 0;padding-left:20px;line-height:1.65;font-size:14px}
+  code{background:#0b0d10;border:1px solid var(--border);border-radius:5px;padding:0 5px;font-size:12.5px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>YouTube Pipeline — Live Dashboard</h1>
+      <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code> and <code>channel_requests.json</code> there.</div>
+    </div>
+    <button id="btn-disconnect" class="secondary hidden">Disconnect</button>
+  </header>
+
+  <!-- ============ 0. TOKEN GATE ============ -->
+  <section id="gate">
+    <h2>Connect</h2>
+    <label for="token">GitHub fine-grained token (Contents: Read and write on <b>youtube-channels</b> only)</label>
+    <input type="password" id="token" autocomplete="off" placeholder="github_pat_…">
+    <div class="row" style="margin-top:12px">
+      <button id="btn-connect">Connect</button>
+    </div>
+    <div class="msg" id="gate-msg"></div>
+    <p class="note">The token is stored only in this browser's localStorage and is sent only to
+      <code>api.github.com</code>. It never transits any other server. Disconnect erases it.
+      Create one at github.com → Settings → Developer settings → Personal access tokens →
+      Fine-grained tokens, with Repository access limited to <code>youtube-channels</code>.</p>
+  </section>
+
+  <div id="app" class="hidden">
+
+    <!-- ============ 1. ADD TOPIC ============ -->
+    <section id="sec-add">
+      <h2>1 · Add a topic to the funnel</h2>
+      <div class="row">
+        <div class="grow">
+          <label for="add-title">Topic title</label>
+          <input type="text" id="add-title" placeholder="e.g. Compare the best HYSA accounts in the US">
+        </div>
+        <div>
+          <label for="add-channel">Channel</label>
+          <select id="add-channel"></select>
+        </div>
+        <button id="btn-add">Add topic</button>
+      </div>
+      <div class="msg" id="add-msg"></div>
+      <p class="note">Country topics → pick their channel. A non-country stocks/RE topic added here goes to the
+        picked channel, and the pipeline cross-files it to the other two investing channels on its next pass.
+        The topic gets the next free serial number and lands at the end of that channel's “Open topics”.</p>
+    </section>
+
+    <!-- ============ ADD A CHANNEL ============ -->
+    <section id="sec-channel">
+      <h2>2 · Add a channel</h2>
+      <div class="row">
+        <div class="grow">
+          <label for="ch-handle">Channel handle (@name) or full channel URL</label>
+          <input type="text" id="ch-handle" placeholder="@MyChannel or https://www.youtube.com/@MyChannel">
+        </div>
+        <div class="grow">
+          <label for="ch-name">Display name (optional)</label>
+          <input type="text" id="ch-name" placeholder="My Channel">
+        </div>
+        <div>
+          <label for="ch-lang">Language</label>
+          <select id="ch-lang">
+            <option value="en">English</option>
+            <option value="ar">Arabic</option>
+          </select>
+        </div>
+        <button id="btn-channel">Add channel</button>
+      </div>
+      <div class="msg" id="ch-msg"></div>
+      <p class="note">Everything syncs automatically — funnel section, channel registry, status card —
+        <b>including the Google consent grant</b>: adding a channel here is your approval for its full wiring,
+        and the consent runs automatically. The only step that can come back to you is a fresh Google security
+        challenge (password / 2-Step code) — the request then shows <b>awaiting-signin</b> and you'll get a
+        message in chat.</p>
+      <div id="ch-list"></div>
+    </section>
+
+    <!-- ============ 3. CHANNEL STATUS ============ -->
+    <section id="sec-status">
+      <h2>3 · Channel status</h2>
+      <div class="row" style="align-items:center">
+        <button id="btn-refresh" class="secondary">Refresh</button>
+        <span class="sub" id="status-gen"></span>
+      </div>
+      <div class="msg" id="status-msg"></div>
+      <div class="grid" id="status-grid" style="margin-top:10px"></div>
+    </section>
+
+    <!-- ============ 4. PIPELINE CONTROL ============ -->
+    <section id="sec-control">
+      <h2>4 · Pipeline control</h2>
+      <div id="ctl-state" class="kv">Loading control state…</div>
+      <div id="sched" class="kv"></div>
+      <label>Run mode</label>
+      <div class="radios" id="ctl-modes">
+        <label><input type="radio" name="mode" value="muse"> 1 · muse (VM)</label>
+        <label><input type="radio" name="mode" value="colab"> 2 · colab (GPU)</label>
+        <label><input type="radio" name="mode" value="hybrid"> 3 · hybrid (VM + Colab art)</label>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button id="btn-start">Start</button>
+        <button id="btn-stop" class="danger">Stop</button>
+      </div>
+      <div class="msg" id="ctl-msg"></div>
+      <p class="note"><b>Start</b> does not create a separate manual pipeline: it sets the pipeline enabled in the
+        chosen mode and files a start request that the watcher consumes by running the <i>same</i> orchestrator pass
+        the Tue/Sat cron runs — and the recurring schedule stays enabled, so production continues automatically.
+        <b>Choosing a mode + Start supersedes any run of another mode</b>: only one mode is ever active, and
+        in-flight runs of other modes stop. <b>Stop</b> disables the pipeline (scheduled passes skip).</p>
+      <p class="note">Mode notes: <b>muse</b> runs fully on the VM. <b>colab</b> / <b>hybrid</b> starts are
+        best-effort — the watcher prepares everything and launches the Colab session, and you may be asked for a
+        Google sign-in code. YouTube uploads always wait for your per-video approval in chat.</p>
+    </section>
+
+    <!-- ============ 5. HOW TO RUN ============ -->
+    <section id="sec-howto">
+      <h2>5 · How to run each mode</h2>
+      <label for="howto-mode">Show steps for</label>
+      <select id="howto-mode">
+        <option value="muse">1 · muse (VM)</option>
+        <option value="colab">2 · colab (GPU)</option>
+        <option value="hybrid">3 · hybrid (VM + Colab art)</option>
+      </select>
+      <ol class="steps" id="howto-body"></ol>
+    </section>
+
+  </div>
+</div>
+<script>
+"use strict";
+const API = "https://api.github.com", OWNER = "omarawad2",
+      REPO = "youtube-channels", BRANCH = "main";
+const CHANNELS = [
+  {slug:"wealthpath-canada", name:"WealthPath Canada", handle:"@WealthPath_Canada"},
+  {slug:"wealthpath-usa", name:"WealthPath USA", handle:"@WealthPath_USA2"},
+  {slug:"sikkat-al-flous", name:"سكة الفلوس", handle:"@سكةالفلوس"},
+  {slug:"sikkat-al-hijra", name:"سكة الهجرة", handle:"@سكةالهجرة"},
+  {slug:"northbound-canada", name:"Northbound - Canada Immigration", handle:"@Northbound-CanadaImmigration"},
+  {slug:"northbound-usa", name:"NorthBound - USA Immigration", handle:"@NorthBound-USAImmigration"},
+  {slug:"offer-letter", name:"The Offer Letter - Tech Careers", handle:"@TheOfferLetter-TechCareers"}
+];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let token = localStorage.getItem("yt_pipeline_token") || "";
+let lastStatus = null, control = null, controlSha = null;
+
+/* ---------- base64 (UTF-8 safe) ---------- */
+function b64encode(str){
+  const bytes = new TextEncoder().encode(str); let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function b64decode(b64){
+  const bin = atob(String(b64).replace(/\s/g, ""));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+/* ---------- GitHub API ---------- */
+async function gh(path, opts = {}){
+  const headers = {"Authorization": "Bearer " + token,
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"};
+  if (opts.body) headers["Content-Type"] = "application/json";
+  const r = await fetch(API + path, {...opts, headers});
+  if (!r.ok){
+    const t = await r.text();
+    throw new Error("GitHub " + r.status + ": " + t.slice(0, 220));
+  }
+  return r.status === 204 ? null : r.json();
+}
+async function getFile(path){
+  const d = await gh(`/repos/${OWNER}/${REPO}/contents/${path}?ref=${BRANCH}`);
+  return {text: b64decode(d.content), sha: d.sha};
+}
+async function putFile(path, text, message, sha){
+  const body = {message, content: b64encode(text), branch: BRANCH};
+  if (sha) body.sha = sha;
+  return gh(`/repos/${OWNER}/${REPO}/contents/${path}`,
+    {method: "PUT", body: JSON.stringify(body)});
+}
+const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
+  : "id-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+const fmtET = iso => {
+  if (!iso) return "—";
+  try { return new Intl.DateTimeFormat("en-US",
+    {timeZone: "America/Toronto", weekday: "long", month: "short",
+     day: "numeric", year: "numeric", hour: "numeric",
+     minute: "2-digit"}).format(new Date(iso)) + " ET"; }
+  catch (e) { return iso; }
+};
+function setMsg(id, text, cls){ const el = $(id); el.textContent = text;
+  el.className = "msg " + (cls || ""); }
+
+/* ---------- token gate ---------- */
+async function connect(tok){
+  token = tok;
+  const d = await gh(`/repos/${OWNER}/${REPO}`); // validates the token
+  localStorage.setItem("yt_pipeline_token", token);
+  $("gate").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  $("btn-disconnect").classList.remove("hidden");
+  await loadAll();
+}
+$("btn-connect").addEventListener("click", async () => {
+  const tok = $("token").value.trim();
+  if (!tok) return setMsg("gate-msg", "Paste the token first.", "err");
+  $("btn-connect").disabled = true;
+  try { await connect(tok); }
+  catch (e) { setMsg("gate-msg", "Could not connect: " + e.message, "err"); }
+  $("btn-connect").disabled = false;
+});
+$("btn-disconnect").addEventListener("click", () => {
+  localStorage.removeItem("yt_pipeline_token"); location.reload();
+});
+
+/* ---------- funnel: parse + insert (mirrors scripts/funnel_lib.py) --- */
+const HEADING_RE = /^## .+\(([a-z0-9-]+)\)\s*$/;
+const ENTRY_RE = /^- \[([ x])\] #(\d+)\b/;
+const isCross = line => line.includes("*(cross-filed") ||
+                        line.includes("*(cross-channel counterpart");
+function parseFunnel(text){
+  const lines = text.split("\n");
+  let slug = null, maxSerial = 0; const sections = {};
+  lines.forEach((line, i) => {
+    const h = line.match(HEADING_RE);
+    if (h) { slug = h[1]; if (!(slug in sections)) sections[slug] = i; return; }
+    if (line.startsWith("## ")) { slug = null; return; }
+    const e = line.match(ENTRY_RE);
+    if (e && slug && !isCross(line))
+      maxSerial = Math.max(maxSerial, parseInt(e[2], 10));
+  });
+  return {lines, maxSerial, sections};
+}
+function insertTopic(text, slug, topicLine){
+  const {lines, sections} = parseFunnel(text);
+  if (!(slug in sections)) throw new Error("channel section not found: " + slug);
+  const start = sections[slug];
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++)
+    if (lines[i].startsWith("## ")) { end = i; break; }
+  let openIdx = -1;
+  for (let i = start; i < end; i++)
+    if (lines[i].startsWith("### Open topics")) { openIdx = i; break; }
+  if (openIdx < 0) throw new Error('no "Open topics" block under ' + slug);
+  let last = openIdx;
+  for (let i = openIdx + 1; i < end; i++){
+    if (lines[i].startsWith("### ")) break;
+    if (ENTRY_RE.test(lines[i])) last = i;
+  }
+  lines.splice(last + 1, 0, topicLine);
+  return lines.join("\n");
+}
+function buildTopic(text, slug, title){
+  const {maxSerial} = parseFunnel(text);
+  const n = maxSerial + 1;
+  const prefix = slug === "sikkat-al-flous" &&
+                 !title.startsWith("(AR)") ? "(AR) " : "";
+  return {n, newText: insertTopic(text, slug,
+    `- [ ] #${n} ${prefix}${title}`)};
+}
+$("btn-add").addEventListener("click", async () => {
+  const title = $("add-title").value.replace(/\s*\n\s*/g, " ").trim();
+  const slug = $("add-channel").value;
+  if (!title) return setMsg("add-msg", "Enter a topic title first.", "err");
+  const name = (CHANNELS.find(c => c.slug === slug) || {}).name || slug;
+  $("btn-add").disabled = true;
+  try {
+    let f = await getFile("funnel.md");
+    let {n, newText} = buildTopic(f.text, slug, title);
+    try {
+      await putFile("funnel.md", newText,
+        `Funnel: add #${n} via dashboard`, f.sha);
+    } catch (e) {
+      if (!String(e.message).includes("409")) throw e;
+      f = await getFile("funnel.md");          // raced a push: retry once
+      ({n, newText} = buildTopic(f.text, slug, title));
+      await putFile("funnel.md", newText,
+        `Funnel: add #${n} via dashboard`, f.sha);
+    }
+    setMsg("add-msg", `Added as #${n} under ${name}.`, "ok");
+    $("add-title").value = "";
+    refreshStatus();
+  } catch (e) { setMsg("add-msg", "Failed: " + e.message, "err"); }
+  $("btn-add").disabled = false;
+});
+
+/* ---------- channel requests ---------- */
+async function getRequests(){
+  try {
+    const f = await getFile("channel_requests.json");
+    return {list: JSON.parse(f.text || "[]"), sha: f.sha};
+  } catch (e) {
+    if (String(e.message).includes("404")) return {list: [], sha: null};
+    throw e;
+  }
+}
+const STATUS_BADGE = {pending: "pend", wiring: "pend",
+  "awaiting-signin": "pend", live: "on", failed: "off"};
+function renderRequests(list){
+  const el = $("ch-list");
+  if (!list.length){
+    el.innerHTML = '<p class="note">No channel requests yet.</p>'; return;
+  }
+  el.innerHTML = list.slice().reverse().map(r => `
+    <div class="req">
+      <span><b>${esc(r.display_name || r.handle_or_url)}</b>
+        <span class="sub">${esc(r.handle_or_url)} · ${esc(r.lang || "")} ·
+        ${esc(fmtET(r.requested_at))}</span>
+        ${r.note ? `<br><span class="sub">${esc(r.note)}</span>` : ""}</span>
+      <span class="badge ${STATUS_BADGE[r.status] || "pend"}">${esc(r.status)}</span>
+    </div>`).join("");
+}
+$("btn-channel").addEventListener("click", async () => {
+  const handle = $("ch-handle").value.trim();
+  const name = $("ch-name").value.trim();
+  const lang = $("ch-lang").value;
+  if (!handle) return setMsg("ch-msg",
+    "Enter the channel handle or URL first.", "err");
+  $("btn-channel").disabled = true;
+  try {
+    const {list, sha} = await getRequests();
+    list.push({id: uuid(), handle_or_url: handle, display_name: name,
+      lang, status: "pending", requested_at: new Date().toISOString(),
+      note: ""});
+    await putFile("channel_requests.json",
+      JSON.stringify(list, null, 1) + "\n",
+      `Dashboard: request new channel ${handle}`, sha);
+    setMsg("ch-msg",
+      "Request filed — wiring (including the consent grant) runs automatically.", "ok");
+    $("ch-handle").value = ""; $("ch-name").value = "";
+    renderRequests(list);
+  } catch (e) { setMsg("ch-msg", "Failed: " + e.message, "err"); }
+  $("btn-channel").disabled = false;
+});
+
+/* ---------- channel status ---------- */
+function renderStatus(s){
+  lastStatus = s;
+  $("status-gen").textContent =
+    "status.json built " + fmtET(s.generated_at);
+  $("status-grid").innerHTML = (s.channels || []).map(c => {
+    const ups = (c.uploads || []).map(u =>
+      `<li><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
+       <span class="sub">— ${esc(fmtET(u.uploaded_at))}</span></li>`).join("");
+    return `<div class="card">
+      <h3 dir="auto">${esc(c.name)}</h3>
+      <a class="handle" href="https://www.youtube.com/${esc(c.handle)}"
+         target="_blank" rel="noopener">${esc(c.handle)}</a>
+      <div class="kv">
+        <b>Uploaded:</b> ${c.uploaded_count} &nbsp;·&nbsp;
+        <b>Open topics:</b> ${c.open_topics}<br>
+        <b>In production:</b> ${c.in_production
+          ? "#" + c.in_production.number + " — " + esc(c.in_production.title) : "—"}<br>
+        <b>Next open:</b> ${c.next_open_topic
+          ? "#" + c.next_open_topic.number + " — " + esc(c.next_open_topic.title) : "—"}<br>
+        <b>Queue:</b> ${c.queue ? c.queue.pending : 0} pending ·
+        ${c.queue ? c.queue.claimed : 0} claimed
+      </div>
+      ${ups ? `<div class="kv"><b>Uploaded videos</b></div><ul class="up">${ups}</ul>`
+            : `<div class="kv"><b>Uploaded videos:</b> none yet</div>`}
+    </div>`;
+  }).join("");
+  renderSchedule();
+}
+async function refreshStatus(){
+  try {
+    const f = await getFile("status.json");
+    renderStatus(JSON.parse(f.text));
+    setMsg("status-msg", "", "");
+  } catch (e) {
+    if (String(e.message).includes("404"))
+      setMsg("status-msg",
+        "status.json not found yet — it is generated by the pipeline (scripts/status.py).", "warn");
+    else
+      setMsg("status-msg", "Could not load status: " + e.message, "err");
+  }
+}
+$("btn-refresh").addEventListener("click",
+  async () => { await refreshStatus(); await loadRequestsQuiet(); });
+
+/* ---------- pipeline control ---------- */
+function renderSchedule(){
+  const el = $("sched");
+  if (!control) { el.innerHTML = ""; return; }
+  if (!control.enabled){
+    el.innerHTML = "<b>Schedule:</b> Schedule paused (pipeline stopped from this page)";
+    return;
+  }
+  const s = lastStatus && lastStatus.schedule;
+  if (!s) { el.innerHTML = "<b>Schedule:</b> — (status.json not loaded)"; return; }
+  el.innerHTML =
+    `<b>Next scheduled run:</b> ${esc(fmtET(s.next_production_pass))} — ` +
+    `production pass (mode: ${esc(control.mode)})<br>` +
+    `<b>Next special refresh:</b> ${esc(fmtET(s.next_special_refresh))}`;
+}
+function renderControl(){
+  const el = $("ctl-state");
+  if (!control) { el.textContent = "control.json not loaded."; return; }
+  const badge = control.enabled
+    ? '<span class="badge on">Running</span>'
+    : '<span class="badge off">Stopped</span>';
+  el.innerHTML =
+    `${badge} &nbsp;<b>Mode:</b> ${esc(control.mode)}<br>` +
+    `<b>Last change:</b> ${esc(fmtET(control.updated_at))} by ${esc(control.updated_by || "—")}<br>` +
+    `<b>Start request:</b> ${control.start_request
+        ? "pending — filed " + esc(fmtET(control.start_request.at)) : "none"}<br>` +
+    `<b>Watcher note:</b> ${esc(control.watcher_note || "—")}`;
+  const radio = document.querySelector(
+    `input[name="mode"][value="${control.mode}"]`);
+  if (radio) radio.checked = true;
+  renderSchedule();
+}
+async function loadControl(){
+  const f = await getFile("control.json");
+  control = JSON.parse(f.text); controlSha = f.sha;
+  renderControl();
+}
+async function writeControl(patch, message){
+  const next = {...control, ...patch,
+    updated_by: "dashboard", updated_at: new Date().toISOString()};
+  const res = await putFile("control.json",
+    JSON.stringify(next, null, 1) + "\n", message, controlSha);
+  control = next;
+  if (res && res.content && res.content.sha) controlSha = res.content.sha;
+  renderControl();
+}
+$("btn-start").addEventListener("click", async () => {
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  $("btn-start").disabled = true;
+  try {
+    await writeControl(
+      {enabled: true, mode,
+       start_request: {at: new Date().toISOString(), id: uuid()}},
+      `Dashboard: start pipeline (mode=${mode})`);
+    setMsg("ctl-msg",
+      `Start filed — the watcher will run the orchestrator pass in ${mode} mode.`, "ok");
+  } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
+  $("btn-start").disabled = false;
+});
+$("btn-stop").addEventListener("click", async () => {
+  $("btn-stop").disabled = true;
+  try {
+    await writeControl({enabled: false}, "Dashboard: stop pipeline");
+    setMsg("ctl-msg", "Pipeline stopped. Scheduled passes will skip.", "ok");
+  } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
+  $("btn-stop").disabled = false;
+});
+async function loadRequestsQuiet(){
+  try { const {list} = await getRequests(); renderRequests(list); }
+  catch (e) { /* list stays as-is */ }
+}
+
+/* ---------- how to run (summarized from docs/runbook-<mode>.md) ------ */
+const HOWTO = {
+  muse: [
+    "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above — filed under the channel's Open topics with the next serial number.",
+    "The agent researches and writes the script, then queues the job (scripts/make_jobs.py).",
+    "./run_muse.sh drains the queue entirely on this VM: scenes → cartoon-kit art drawn on the VM (~1s/scene) → TTS → slideshow render + QA grader loop.",
+    "Finished videos go to the review host; the agent delivers them in chat.",
+    "You approve per video — only then does upload.py upload (forced unlisted) and mark the funnel topic done.",
+    "Cron: the Tue/Sat production passes run this mode end-to-end on the VM — no Colab step, and a pass never stalls on art."
+  ],
+  colab: [
+    "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
+    "The agent (on the VM) researches, writes the scripts, queues the jobs and pushes the repo.",
+    "Start the session (default): scripts/start_colab.py --mode full opens run_colab.ipynb in a browser tab and records the launch — or open the notebook link yourself.",
+    "In the tab: set Runtime → GPU (T4), Run all, and paste the GitHub token when asked (session-only).",
+    "Per job, in-notebook: SDXL scene art on the T4 (default stage) → Edge TTS → render + QA grading → mp4 to the review host, queue/done pushed. Drain-and-exit, ~$1/video.",
+    "The agent delivers finished videos in chat; you approve per video; upload.py uploads only after approval (forced unlisted).",
+    "Cron: passes run in muse mode — colab is never the cron's mode; a colab pass is kicked off via start_colab.py and may need your Run-all click / sign-in code."
+  ],
+  hybrid: [
+    "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
+    "The agent researches + writes scripts, queues jobs (make_jobs.py) and pushes.",
+    "./run_hybrid.sh on the VM builds each job's scene manifest; jobs whose art is complete render here immediately (same engine as muse).",
+    "Jobs missing art register an art-queue batch, and the run starts the Colab art session by default (start_colab.py --mode art; --no-start-colab skips). In the tab: GPU runtime → Run all → GitHub token when asked — it drains the art queue and pushes.",
+    "Re-run ./run_hybrid.sh: it downloads each finished art bundle, verifies every scene (count + sha256), then renders + grades on the VM. (Bundles expire in ~6 days — don't sit on them.)",
+    "Finished videos are delivered in chat; you approve per video; upload.py uploads only after approval (forced unlisted) and marks the topic done.",
+    "Cron: a VM cron pass can run hybrid (guard → jobs → run_hybrid.sh, which launches the art session by default); the Run-all click in the Colab tab stays manual by design."
+  ]
+};
+function renderHowto(){
+  const mode = $("howto-mode").value;
+  $("howto-body").innerHTML =
+    HOWTO[mode].map(s => `<li>${esc(s)}</li>`).join("");
+}
+$("howto-mode").addEventListener("change", renderHowto);
+
+/* ---------- init ---------- */
+(function init(){
+  const sel = $("add-channel");
+  sel.innerHTML = CHANNELS.map(c =>
+    `<option value="${c.slug}">${esc(c.name)} (${esc(c.handle)})</option>`
+  ).join("");
+  renderHowto();
+  if (token) connect(token).catch(e => {
+    localStorage.removeItem("yt_pipeline_token");
+    setMsg("gate-msg", "Saved token was rejected: " + e.message, "err");
+  });
+})();
+async function loadAll(){
+  await refreshStatus();
+  try { await loadControl(); }
+  catch (e) { setMsg("ctl-msg", "Could not load control.json: " + e.message, "err"); }
+  await loadRequestsQuiet();
+}
+</script>
+</body>
+</html>
