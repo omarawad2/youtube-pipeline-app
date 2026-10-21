@@ -89,7 +89,7 @@
   <header>
     <div>
       <h1>YouTube Pipeline — Live Dashboard</h1>
-      <div class="sub">Updated 2026-10-21 18:54 ET</div>
+      <div class="sub">Updated 2026-10-21 18:56 ET</div>
       <div class="sub hidden" id="hdr-refresh"><button id="btn-refresh" class="secondary">Refresh</button> <span id="last-refreshed">Last refreshed: —</span></div>
       <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code>, <code>channel_requests.json</code> and <code>approvals.json</code> there.</div>
     </div>
@@ -708,7 +708,8 @@ function renderPipelineState(){
     `<b>Live run:</b> ${esc(ps.state || "—")} · mode ${esc(ps.mode || "—")} · ` +
     `channel ${esc(ps.current_channel ? channelName(ps.current_channel) : "—")} · ` +
     `stage ${esc(ps.stage || "—")} · progress ${esc(prog)} · ` +
-    `started ${esc(fmtET(ps.started_at))}`;
+    `started ${esc(fmtET(ps.started_at))}` +
+    (ps.notice ? `<div class="warn">${esc(ps.notice)}</div>` : "");
 }
 function renderQuota(){
   const el = $("quota");
