@@ -13,45 +13,65 @@
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
-  .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  .wrap{max-width:1360px;margin:0 auto;padding:20px 16px 60px}
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-  h1{font-size:22px;margin:0}
-  h2{font-size:16px;margin:0 0 10px 0}
-  .sub{color:var(--muted);font-size:13px;margin-top:4px}
+  h1{font-size:44px;margin:0}
+  h2{font-size:32px;margin:0 0 10px 0}
+  .sub{color:var(--muted);font-size:26px;margin-top:4px}
   section{background:var(--panel);border:1px solid var(--border);
     border-radius:var(--radius);padding:16px;margin-top:16px}
-  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  label{display:block;font-size:26px;color:var(--muted);margin:10px 0 4px}
   input[type=text],input[type=password],select,textarea{
     width:100%;background:var(--panel2);border:1px solid var(--border);
-    color:var(--text);border-radius:8px;padding:9px 10px;font-size:14px}
+    color:var(--text);border-radius:8px;padding:14px;font-size:28px}
   button{background:var(--accent);color:#fff;border:0;border-radius:8px;
-    padding:9px 16px;font-size:14px;cursor:pointer}
+    padding:14px 24px;font-size:28px;cursor:pointer}
   button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
   button.danger{background:var(--red)}
   button:disabled{opacity:.5;cursor:default}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
-  .grow{flex:1;min-width:220px}
-  .msg{font-size:13px;margin-top:10px;min-height:18px}
+  .grow{flex:1;min-width:min(320px,100%)}
+  .msg{font-size:26px;margin-top:10px;min-height:18px}
   .ok{color:var(--green)} .err{color:var(--red)} .warn{color:var(--amber)}
-  .note{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:8px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .note{color:var(--muted);font-size:25px;line-height:1.5;margin-top:8px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(560px,100%),1fr));gap:16px}
   .card{background:var(--panel2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
-  .card h3{margin:0;font-size:15px}
-  .card .handle{color:var(--accent);font-size:13px;text-decoration:none}
-  .kv{font-size:13px;margin-top:8px;line-height:1.55}
+  .card h3{margin:0;font-size:30px}
+  .card .handle{color:var(--accent);font-size:26px;text-decoration:none}
+  .kv{font-size:26px;margin-top:8px;line-height:1.55}
   .kv b{color:var(--muted);font-weight:600}
-  .up{margin:8px 0 0;padding-left:16px;font-size:13px;line-height:1.6}
+  .up{margin:8px 0 0;padding-left:16px;font-size:26px;line-height:1.6}
   .up a{color:var(--accent);text-decoration:none}
-  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;border:1px solid var(--border)}
+  .badge{display:inline-block;padding:4px 16px;border-radius:20px;font-size:24px;border:1px solid var(--border)}
   .badge.on{color:var(--green);border-color:var(--green)}
   .badge.off{color:var(--red);border-color:var(--red)}
   .badge.pend{color:var(--amber);border-color:var(--amber)}
   .radios{display:flex;gap:14px;flex-wrap:wrap;margin:6px 0 2px}
-  .radios label{display:flex;gap:6px;align-items:center;color:var(--text);font-size:14px;margin:0}
-  .req{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:13.5px;flex-wrap:wrap}
+  .radios label{display:flex;gap:6px;align-items:center;color:var(--text);font-size:28px;margin:0}
+  .req{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--border);font-size:27px;flex-wrap:wrap}
   .req:first-of-type{border-top:0}
-  ol.steps{margin:6px 0 0;padding-left:20px;line-height:1.65;font-size:14px}
-  code{background:#0b0d10;border:1px solid var(--border);border-radius:5px;padding:0 5px;font-size:12.5px}
+  ol.steps{margin:6px 0 0;padding-left:20px;line-height:1.65;font-size:28px}
+  code{background:#0b0d10;border:1px solid var(--border);border-radius:5px;padding:0 5px;font-size:25px}
+  /* channel status cards */
+  .badge.blue{color:var(--accent);border-color:var(--accent)}
+  .badge.idle{color:var(--muted)}
+  .chead{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .avatar{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;
+    justify-content:center;font-size:30px;font-weight:700;color:#fff;flex:0 0 auto}
+  .cname{flex:1;min-width:min(240px,100%)}
+  .cname h3{margin:0 0 2px}
+  .stats{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
+  .stat{flex:1;min-width:min(140px,40%);background:var(--panel);border:1px solid var(--border);
+    border-radius:8px;padding:10px 14px;text-align:center}
+  .stat .num{font-size:44px;font-weight:700;line-height:1.1}
+  .stat .lab{font-size:20px;color:var(--muted)}
+  .bar{height:10px;background:var(--panel);border:1px solid var(--border);
+    border-radius:6px;margin-top:14px;overflow:hidden}
+  .barfill{height:100%;background:var(--green)}
+  .up{list-style:none;padding-left:0}
+  .up li{margin:10px 0}
+  .uplink{display:flex;gap:14px;align-items:center;color:var(--text);text-decoration:none;flex-wrap:wrap}
+  .thumb{width:132px;max-width:40vw;border-radius:8px;flex:0 0 auto;background:var(--panel)}
   .hidden{display:none}
 </style>
 </head>
@@ -159,11 +179,12 @@
         <button id="btn-stop" class="danger">Stop</button>
       </div>
       <div class="msg" id="ctl-msg"></div>
+      <p class="note">Run starts production now and sets the loop: a run every 3 days at this same time until you stop it.</p>
       <p class="note"><b>Start</b> does not create a separate manual pipeline: it sets the pipeline enabled in the
-        chosen mode and files a start request that the watcher consumes by running the <i>same</i> orchestrator pass
-        the Tue/Sat cron runs — and the recurring schedule stays enabled, so production continues automatically.
-        <b>Choosing a mode + Start supersedes any run of another mode</b>: only one mode is ever active, and
-        in-flight runs of other modes stop. <b>Stop</b> disables the pipeline (scheduled passes skip).</p>
+        chosen mode, anchors the 3-day loop at the moment you press it, and files a start request that the watcher
+        consumes by running the standard orchestrator pass. The watcher fires each due run after that and advances
+        the loop. <b>Choosing a mode + Start supersedes any run of another mode</b>: only one mode is ever active, and
+        in-flight runs of other modes stop. <b>Stop</b> disables the pipeline (due runs and scheduled passes skip).</p>
       <p class="note">Mode notes: <b>muse</b> runs fully on the VM. <b>colab</b> / <b>hybrid</b> starts are
         best-effort — the watcher prepares everything and launches the Colab session, and you may be asked for a
         Google sign-in code. YouTube uploads always wait for your per-video approval in chat.</p>
@@ -239,6 +260,14 @@ async function putFile(path, text, message, sha){
 }
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
   : "id-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+/* ISO 8601 with the browser's local UTC offset (e.g. 2026-10-21T17:45:00-04:00) */
+const isoWithOffset = d => {
+  const p = (n, w) => String(n).padStart(w || 2, "0");
+  const off = -d.getTimezoneOffset(), a = Math.abs(off);
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+    "T" + p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds()) +
+    (off < 0 ? "-" : "+") + p(Math.floor(a / 60)) + ":" + p(a % 60);
+};
 const fmtET = iso => {
   if (!iso) return "—";
   try { return new Intl.DateTimeFormat("en-US",
@@ -393,30 +422,72 @@ $("btn-channel").addEventListener("click", async () => {
 });
 
 /* ---------- channel status ---------- */
+const AV_COLORS = ["#b03a2e", "#7ba05b", "#4f8cff", "#a67c3b",
+                   "#5b8fa6", "#8e6cc8", "#3fa08a"];
+function avColor(slug){
+  let h = 0;
+  for (const ch of String(slug || "")) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return AV_COLORS[h % AV_COLORS.length];
+}
+function initials(name){
+  const w = String(name || "?").trim().split(/\s+/);
+  return (((w[0] || "")[0] || "?") + ((w[1] || "")[0] || "")).toUpperCase();
+}
+function vidId(u){
+  if (u.video_id) return u.video_id;
+  const m = String(u.url || "").match(/(?:youtu\.be\/|[?&]v=)([\w-]{6,})/);
+  return m ? m[1] : "";
+}
 function renderStatus(s){
   lastStatus = s;
   $("status-gen").textContent =
     "status.json built " + fmtET(s.generated_at);
   $("status-grid").innerHTML = (s.channels || []).map(c => {
-    const ups = (c.uploads || []).map(u =>
-      `<li><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
-       <span class="sub">— ${esc(fmtET(u.uploaded_at))}</span></li>`).join("");
+    const q = c.queue || {pending: 0, claimed: 0};
+    let pill;
+    if (c.in_production)
+      pill = `<span class="badge pend">In production #${c.in_production.number}</span>`;
+    else if (q.claimed > 0)
+      pill = `<span class="badge blue">Awaiting approval</span>`;
+    else
+      pill = `<span class="badge idle">Idle</span>`;
+    const tot = (c.uploaded_count || 0) + (c.open_topics || 0);
+    const pct = tot ? Math.round(100 * c.uploaded_count / tot) : 0;
+    const ups = (c.uploads || []).map(u => {
+      const id = vidId(u);
+      if (id)
+        return `<li><a class="uplink" href="${esc(u.url)}" target="_blank" rel="noopener">` +
+          `<img class="thumb" loading="lazy" alt="" ` +
+          `src="https://i.ytimg.com/vi/${esc(id)}/mqdefault.jpg">` +
+          `<span>${esc(u.title)}<br>` +
+          `<span class="sub">${esc(fmtET(u.uploaded_at))}</span></span></a></li>`;
+      return `<li><a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
+       <span class="sub">— ${esc(fmtET(u.uploaded_at))}</span></li>`;
+    }).join("");
     return `<div class="card">
-      <h3 dir="auto">${esc(c.name)}</h3>
-      <a class="handle" href="https://www.youtube.com/${esc(c.handle)}"
-         target="_blank" rel="noopener">${esc(c.handle)}</a>
+      <div class="chead">
+        <div class="avatar" style="background:${avColor(c.slug)}">${esc(initials(c.name))}</div>
+        <div class="cname">
+          <h3 dir="auto">${esc(c.name)}</h3>
+          <a class="handle" href="https://www.youtube.com/${esc(c.handle)}"
+             target="_blank" rel="noopener">${esc(c.handle)}</a>
+        </div>
+        ${pill}
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="num">${c.uploaded_count}</div><div class="lab">Uploaded</div></div>
+        <div class="stat"><div class="num">${c.open_topics}</div><div class="lab">Open topics</div></div>
+        <div class="stat"><div class="num">${q.pending + q.claimed}</div><div class="lab">In queue</div></div>
+      </div>
+      <div class="bar"><div class="barfill" style="width:${pct}%"></div></div>
       <div class="kv">
-        <b>Uploaded:</b> ${c.uploaded_count} &nbsp;·&nbsp;
-        <b>Open topics:</b> ${c.open_topics}<br>
         <b>In production:</b> ${c.in_production
           ? "#" + c.in_production.number + " — " + esc(c.in_production.title) : "—"}<br>
         <b>Next open:</b> ${c.next_open_topic
-          ? "#" + c.next_open_topic.number + " — " + esc(c.next_open_topic.title) : "—"}<br>
-        <b>Queue:</b> ${c.queue ? c.queue.pending : 0} pending ·
-        ${c.queue ? c.queue.claimed : 0} claimed
+          ? "#" + c.next_open_topic.number + " — " + esc(c.next_open_topic.title) : "—"}
       </div>
       ${ups ? `<div class="kv"><b>Uploaded videos</b></div><ul class="up">${ups}</ul>`
-            : `<div class="kv"><b>Uploaded videos:</b> none yet</div>`}
+            : `<div class="kv">No uploads yet — the first approved video will appear here.</div>`}
     </div>`;
   }).join("");
   renderSchedule();
@@ -443,6 +514,17 @@ function renderSchedule(){
   if (!control) { el.innerHTML = ""; return; }
   if (!control.enabled){
     el.innerHTML = "<b>Schedule:</b> Schedule paused (pipeline stopped from this page)";
+    return;
+  }
+  const sch = control.schedule;
+  if (sch && sch.next_run_at){
+    el.innerHTML =
+      `<b>Next scheduled run:</b> ${esc(fmtET(sch.next_run_at))} — ` +
+      `production pass (mode: ${esc(control.mode)}), then every ` +
+      `${esc(sch.every_days || 3)} days` +
+      ((lastStatus && lastStatus.schedule)
+        ? `<br><b>Next special refresh:</b> ` +
+          esc(fmtET(lastStatus.schedule.next_special_refresh)) : "");
     return;
   }
   const s = lastStatus && lastStatus.schedule;
@@ -487,12 +569,17 @@ $("btn-start").addEventListener("click", async () => {
   const mode = document.querySelector('input[name="mode"]:checked').value;
   $("btn-start").disabled = true;
   try {
+    const now = new Date();
+    const next = new Date(now.getTime());
+    next.setDate(next.getDate() + 3); // +3 calendar days, same local wall-clock time
     await writeControl(
       {enabled: true, mode,
-       start_request: {at: new Date().toISOString(), id: uuid()}},
+       start_request: {at: now.toISOString(), id: uuid()},
+       schedule: {anchor_at: isoWithOffset(now), every_days: 3,
+                  next_run_at: isoWithOffset(next)}},
       `Dashboard: start pipeline (mode=${mode})`);
     setMsg("ctl-msg",
-      `Start filed — the watcher will run the orchestrator pass in ${mode} mode.`, "ok");
+      `Start filed — the watcher will run the orchestrator pass in ${mode} mode now, then every 3 days at this time.`, "ok");
   } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
   $("btn-start").disabled = false;
 });
