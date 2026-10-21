@@ -58,6 +58,11 @@
   .chead{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   .avatar{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;
     justify-content:center;font-size:15px;font-weight:700;color:#fff;flex:0 0 auto}
+  img.avatar{object-fit:cover;background:var(--panel)}
+  /* pending approvals */
+  .appr{margin-top:12px}
+  .appr-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center}
+  .appr textarea{margin-top:10px;min-height:64px}
   .cname{flex:1;min-width:min(240px,100%)}
   .cname h3{margin:0 0 2px}
   .stats{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
@@ -82,7 +87,7 @@
   <header>
     <div>
       <h1>YouTube Pipeline — Live Dashboard</h1>
-      <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code> and <code>channel_requests.json</code> there.</div>
+      <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code>, <code>channel_requests.json</code> and <code>approvals.json</code> there.</div>
     </div>
     <button id="btn-disconnect" class="secondary hidden">Disconnect</button>
   </header>
@@ -170,6 +175,8 @@
     <section id="sec-control">
       <h2>4 · Pipeline control</h2>
       <div id="ctl-state" class="kv">Loading control state…</div>
+      <div id="pipe-state" class="kv"></div>
+      <div id="quota" class="kv"></div>
       <div id="sched" class="kv"></div>
       <label>Run mode</label>
       <div class="radios" id="ctl-modes">
@@ -188,14 +195,27 @@
         consumes by running the standard orchestrator pass. The watcher fires each due run after that and advances
         the loop. <b>Choosing a mode + Start supersedes any run of another mode</b>: only one mode is ever active, and
         in-flight runs of other modes stop. <b>Stop</b> disables the pipeline (due runs and scheduled passes skip).</p>
-      <p class="note">Mode notes: <b>muse</b> runs fully on the VM. <b>colab</b> / <b>hybrid</b> starts are
-        best-effort — the watcher prepares everything and launches the Colab session, and you may be asked for a
-        Google sign-in code. YouTube uploads always wait for your per-video approval in chat.</p>
+      <p class="note">Mode notes: <b>muse</b> runs fully on the VM. <b>colab</b> is fully driven by pressing
+        Start: the watcher prepares everything, opens the Colab session, runs and monitors it, and picks up the
+        finished videos — nothing else is needed from you except possibly a Google sign-in code, which is handled
+        in chat, never on this page. <b>hybrid</b>'s Colab art session is driven the same way. YouTube uploads
+        always wait for your per-video approval — in chat, or under “Pending your approval” below.</p>
     </section>
 
-    <!-- ============ 5. HOW TO RUN ============ -->
+    <!-- ============ 5. PENDING APPROVALS ============ -->
+    <section id="sec-approvals">
+      <h2>5 · Pending your approval</h2>
+      <div id="appr-list"></div>
+      <div class="msg" id="appr-msg"></div>
+      <p class="note"><b>Approve</b> uploads the video to YouTube (unlisted) and marks the funnel topic done.
+        <b>Reject</b> discards the render and returns the topic to Open. <b>Feedback</b> regenerates the video
+        with your note as a binding production instruction — up to 3 feedback rounds per topic. Decisions are
+        appended to <code>approvals.json</code>; the watcher picks them up and acts on them.</p>
+    </section>
+
+    <!-- ============ 6. HOW TO RUN ============ -->
     <section id="sec-howto">
-      <h2>5 · How to run each mode</h2>
+      <h2>6 · How to run each mode</h2>
       <label for="howto-mode">Show steps for</label>
       <select id="howto-mode">
         <option value="muse">1 · muse (VM)</option>
@@ -225,6 +245,8 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let token = localStorage.getItem("yt_pipeline_token") || "";
 let lastStatus = null, control = null, controlSha = null;
+const decidedIds = new Set(); // delivery ids decided on this page (this session)
+let autoTimer = null;          // 60s status refetch while a run is live
 
 /* ---------- base64 (UTF-8 safe) ---------- */
 function b64encode(str){
@@ -527,7 +549,9 @@ function renderStatus(s){
     }).join("");
     return `<div class="card">
       <div class="chead">
-        <div class="avatar" style="background:${avColor(c.slug)}">${esc(initials(c.name))}</div>
+        ${c.avatar_url
+          ? `<img class="avatar" alt="" src="${esc(c.avatar_url)}">`
+          : `<div class="avatar" style="background:${avColor(c.slug)}">${esc(initials(c.name))}</div>`}
         <div class="cname">
           <h3 dir="auto">${esc(c.name)}</h3>
           <a class="handle" href="https://www.youtube.com/${esc(c.handle)}"
@@ -560,7 +584,153 @@ function renderStatus(s){
     </div>`;
   }).join("");
   renderSchedule();
+  renderApprovals();
+  renderPipelineState();
+  renderQuota();
+  updateAutoRefresh();
 }
+/* ---------- pending approvals (status.json pending_approvals) ------ */
+function channelName(slug){
+  const c = (lastStatus && (lastStatus.channels || [])
+    .find(x => x.slug === slug)) ||
+    CHANNELS.find(x => x.slug === slug);
+  return c ? c.name : slug;
+}
+function fmtDur(sec){
+  if (sec == null || isNaN(sec)) return "—";
+  sec = Math.round(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60),
+        s = sec % 60;
+  const p = (n, w) => String(n).padStart(w || 2, "0");
+  return h ? `${h}:${p(m)}:${p(s)}` : `${m}:${p(s)}`;
+}
+function renderApprovals(){
+  const el = $("appr-list");
+  if (!el) return;
+  const list = (lastStatus && lastStatus.pending_approvals) || [];
+  if (!list.length){
+    el.innerHTML = '<p class="note">Nothing waiting for approval.</p>';
+    return;
+  }
+  el.innerHTML = list.map(d => {
+    const rounds = d.feedback_rounds || 0;
+    const capHit = rounds >= 3;
+    const sent = decidedIds.has(d.id);
+    const headline = d.final_title || d.title || "";
+    const thumb = d.thumbnail_url
+      ? `<img class="thumb" alt="" src="${esc(d.thumbnail_url)}" ` +
+        `style="width:200px;max-width:60vw;margin-bottom:10px">` : "";
+    const fb = d.last_feedback
+      ? `<div class="kv"><b>Your feedback on attempt ` +
+        `${esc(d.last_feedback.attempt)}:</b> ` +
+        `${esc(d.last_feedback.text)}</div>` : "";
+    return `<div class="card appr">
+      ${thumb}
+      <h3 dir="auto">${esc(headline)}</h3>
+      ${d.final_title && d.title && d.final_title !== d.title
+        ? `<div class="sub">Funnel topic: ${esc(d.title)}</div>` : ""}
+      <div class="kv">
+        <b>Channel:</b> ${esc(channelName(d.channel))}<br>
+        <b>Duration:</b> ${esc(fmtDur(d.duration_sec))} ·
+        <b>Attempt:</b> ${esc(d.attempt)} ·
+        <b>Mode:</b> ${esc(d.run_mode || "—")}<br>
+        <b>Produced:</b> ${esc(fmtET(d.produced_at))}<br>
+        <b>Feedback rounds used:</b> ${rounds} of 3
+      </div>
+      ${fb}
+      ${d.review_url
+        ? `<div class="kv"><a href="${esc(d.review_url)}" target="_blank" ` +
+          `rel="noopener">▶ Watch the review copy</a></div>` : ""}
+      ${sent
+        ? `<div class="msg ok">Sent — the pipeline will pick this up shortly.</div>`
+        : `<div class="appr-actions">
+            <button data-act="approve" data-did="${esc(d.id)}">Approve</button>
+            <button class="danger" data-act="reject" data-did="${esc(d.id)}">Reject</button>
+          </div>
+          <textarea data-fb="${esc(d.id)}" placeholder="Feedback for the next attempt — what to change"
+            ${capHit ? "disabled" : ""}></textarea>
+          <div class="appr-actions">
+            <button class="secondary" data-act="feedback" data-did="${esc(d.id)}"
+              ${capHit ? "disabled" : ""}>Send feedback &amp; regenerate</button>
+            ${capHit ? `<span class="sub">Feedback limit reached (3 rounds) — approve or reject.</span>` : ""}
+          </div>`}
+    </div>`;
+  }).join("");
+}
+async function sendDecision(did, action, feedbackText){
+  const rec = {delivery_id: did, action};
+  if (action === "feedback") rec.feedback_text = feedbackText;
+  rec.decided_at = new Date().toISOString();
+  rec.consumed = false;
+  await putWithRetry("approvals.json", text => {
+    const cur = JSON.parse(text || "[]");
+    cur.push(rec);
+    return JSON.stringify(cur, null, 1) + "\n";
+  }, `Dashboard: ${action} video ${did}`, {createText: "[]\n"});
+  decidedIds.add(did);
+  renderApprovals();
+  setMsg("appr-msg",
+    "Decision sent — the pipeline will pick it up shortly.", "ok");
+}
+$("appr-list").addEventListener("click", async e => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn || btn.disabled) return;
+  const did = btn.dataset.did, act = btn.dataset.act;
+  let fb = "";
+  if (act === "feedback"){
+    const ta = btn.closest(".card").querySelector("textarea[data-fb]");
+    fb = ((ta && ta.value) || "").trim();
+    if (!fb) return setMsg("appr-msg",
+      "Write the feedback first, then send it.", "err");
+  }
+  btn.disabled = true;
+  try { await sendDecision(did, act, fb); }
+  catch (err) {
+    setMsg("appr-msg", "Failed: " + err.message, "err");
+    btn.disabled = false;
+  }
+});
+
+/* ---------- live pipeline state + token quota (control section) --- */
+function renderPipelineState(){
+  const el = $("pipe-state");
+  if (!el) return;
+  const ps = lastStatus && lastStatus.pipeline_state;
+  if (!ps){ el.innerHTML = ""; return; }
+  const prog = ps.progress
+    ? `${ps.progress.done ?? 0}/${ps.progress.total ?? "?"}` : "—";
+  el.innerHTML =
+    `<b>Live run:</b> ${esc(ps.state || "—")} · mode ${esc(ps.mode || "—")} · ` +
+    `channel ${esc(ps.current_channel ? channelName(ps.current_channel) : "—")} · ` +
+    `stage ${esc(ps.stage || "—")} · progress ${esc(prog)} · ` +
+    `started ${esc(fmtET(ps.started_at))}`;
+}
+function renderQuota(){
+  const el = $("quota");
+  if (!el) return;
+  const q = lastStatus && lastStatus.quota;
+  if (!q){ el.innerHTML = ""; return; }
+  let cost = "not measured yet", verdict = "—";
+  if (typeof q.last_pass_cost_percent === "number"){
+    cost = q.last_pass_cost_percent + "%";
+    verdict = q.remaining_percent >= q.last_pass_cost_percent * 1.2
+      ? "Yes" : "No";
+  }
+  el.innerHTML =
+    `<b>Muse tokens:</b> ${esc(q.remaining_percent)}% left ` +
+    `(resets ${esc(q.resets_at_text)}) · last full pass used: ${cost} · ` +
+    `Enough for a muse run: ${verdict}`;
+}
+function updateAutoRefresh(){
+  const running = !!(lastStatus && lastStatus.pipeline_state &&
+    lastStatus.pipeline_state.state === "running");
+  if (running && !autoTimer)
+    autoTimer = setInterval(() => { refreshStatus(); }, 60000);
+  if (!running && autoTimer){
+    clearInterval(autoTimer); autoTimer = null;
+  }
+}
+
 async function refreshStatus(){
   try {
     const f = await getFile("status.json");
@@ -679,21 +849,19 @@ const HOWTO = {
   ],
   colab: [
     "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
-    "The agent (on the VM) researches, writes the scripts, queues the jobs and pushes the repo.",
-    "Start the session (default): scripts/start_colab.py --mode full opens run_colab.ipynb in a browser tab and records the launch — or open the notebook link yourself.",
-    "In the tab: set Runtime → GPU (T4), Run all, and paste the GitHub token when asked (session-only).",
-    "Per job, in-notebook: SDXL scene art on the T4 (default stage) → Edge TTS → render + QA grading → mp4 to the review host, queue/done pushed. Drain-and-exit, ~$1/video.",
-    "The agent delivers finished videos in chat; you approve per video; upload.py uploads only after approval (forced unlisted).",
-    "Cron: passes run in muse mode — colab is never the cron's mode; a colab pass is kicked off via start_colab.py and may need your Run-all click / sign-in code."
+    "Press Start above with mode = colab — that is the whole interaction. The pipeline prepares everything, then drives the Colab session end-to-end for you: it opens the session, runs the notebook, monitors it until it drains and disconnects, and picks up the finished videos.",
+    "You never open the notebook, click Run all, or paste anything. Per job, in the session: SDXL scene art on the T4 → Edge TTS → render + QA grading → mp4 to the review host. Drain-and-exit, ~$1/video.",
+    "The only step that can come back to you is a Google sign-in code (a fresh password / 2-Step challenge) — that is handled in chat, never on this dashboard.",
+    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads only after approval (forced unlisted) and marks the topic done."
   ],
   hybrid: [
     "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
     "The agent researches + writes scripts, queues jobs (make_jobs.py) and pushes.",
     "./run_hybrid.sh on the VM builds each job's scene manifest; jobs whose art is complete render here immediately (same engine as muse).",
-    "Jobs missing art register an art-queue batch, and the run starts the Colab art session by default (start_colab.py --mode art; --no-start-colab skips). In the tab: GPU runtime → Run all → GitHub token when asked — it drains the art queue and pushes.",
-    "Re-run ./run_hybrid.sh: it downloads each finished art bundle, verifies every scene (count + sha256), then renders + grades on the VM. (Bundles expire in ~6 days — don't sit on them.)",
-    "Finished videos are delivered in chat; you approve per video; upload.py uploads only after approval (forced unlisted) and marks the topic done.",
-    "Cron: a VM cron pass can run hybrid (guard → jobs → run_hybrid.sh, which launches the art session by default); the Run-all click in the Colab tab stays manual by design."
+    "Jobs missing art register an art-queue batch, and the Colab art session is driven automatically (opened, run and monitored like a colab run) — it drains the art queue and pushes. A Google sign-in code, if one is demanded, is handled in chat.",
+    "The run then downloads each finished art bundle, verifies every scene (count + sha256), and renders + grades on the VM. (Bundles expire in ~6 days — don't sit on them.)",
+    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads only after approval (forced unlisted) and marks the topic done.",
+    "Cron: a VM cron pass can run hybrid the same way (guard → jobs → run_hybrid.sh, which drives the art session)."
   ]
 };
 function renderHowto(){
