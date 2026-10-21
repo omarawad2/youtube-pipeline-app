@@ -89,7 +89,7 @@
   <header>
     <div>
       <h1>YouTube Pipeline — Live Dashboard</h1>
-      <div class="sub">Updated 2026-10-21 19:15 ET</div>
+      <div class="sub">Updated 2026-10-21 19:21 ET</div>
       <div class="sub hidden" id="hdr-refresh"><button id="btn-refresh" class="secondary">Refresh</button> <span id="last-refreshed">Last refreshed: —</span></div>
       <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code>, <code>channel_requests.json</code> and <code>approvals.json</code> there.</div>
     </div>
@@ -249,7 +249,9 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g,
 let token = localStorage.getItem("yt_pipeline_token") || "";
 let lastStatus = null, control = null, controlSha = null;
 const decidedIds = new Set(); // delivery ids decided on this page (this session)
-let autoTimer = null;          // 60s status refetch while a run is live
+let autoTimer = null;          // status refetch: 20s while a run is live, 60s otherwise
+let autoPeriod = 0;              // cadence currently armed on autoTimer
+let slowTimer = null;            // standing 30-min full refresh, any run state
 
 /* ---------- base64 (UTF-8 safe) ---------- */
 function b64encode(str){
@@ -736,11 +738,13 @@ function renderQuota(){
 function updateAutoRefresh(){
   const running = !!(lastStatus && lastStatus.pipeline_state &&
     lastStatus.pipeline_state.state === "running");
-  if (running && !autoTimer)
-    autoTimer = setInterval(() => { refreshAll(); }, 60000);
-  if (!running && autoTimer){
-    clearInterval(autoTimer); autoTimer = null;
-  }
+  // Near-live while a run is active (the per-video progress sync pushes
+  // every 30s, so the bars move); relaxed 60s cadence otherwise.
+  const period = running ? 20000 : 60000;
+  if (autoTimer && autoPeriod === period) return;
+  if (autoTimer) clearInterval(autoTimer);
+  autoPeriod = period;
+  autoTimer = setInterval(() => { refreshAll(); }, period);
 }
 
 async function refreshStatus(){
@@ -776,6 +780,11 @@ async function refreshAll(){
   }
 }
 $("btn-refresh").addEventListener("click", refreshAll);
+// Standing refresh: the whole dashboard re-reads every 30 minutes while
+// the page is open, whatever the run state. refreshAll()'s re-entry
+// guard prevents overlap if it fires together with the fast timer, and
+// its noteRefreshed() updates the "Last refreshed" stamp like any load.
+slowTimer = setInterval(() => { refreshAll(); }, 30 * 60 * 1000);
 
 /* ---------- pipeline control ---------- */
 function renderSchedule(){
