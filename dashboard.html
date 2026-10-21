@@ -98,6 +98,7 @@
       <code>api.github.com</code>. It never transits any other server. Disconnect erases it.
       Create one at github.com → Settings → Developer settings → Personal access tokens →
       Fine-grained tokens, with Repository access limited to <code>youtube-channels</code>.</p>
+      <p class="note">Tip: open this page in Safari and use Share → Add to Home Screen — it will stay connected on this device.</p>
   </section>
 
   <div id="app" class="hidden">
@@ -244,6 +245,7 @@ async function gh(path, opts = {}){
   const r = await fetch(API + path, {...opts, headers});
   if (!r.ok){
     const t = await r.text();
+    if ((r.status === 401 || r.status === 403) && token) tokenRejected();
     throw new Error("GitHub " + r.status + ": " + t.slice(0, 220));
   }
   return r.status === 204 ? null : r.json();
@@ -280,13 +282,33 @@ function setMsg(id, text, cls){ const el = $(id); el.textContent = text;
   el.className = "msg " + (cls || ""); }
 
 /* ---------- token gate ---------- */
-async function connect(tok){
-  token = tok;
-  const d = await gh(`/repos/${OWNER}/${REPO}`); // validates the token
-  localStorage.setItem("yt_pipeline_token", token);
+const isAuthError = e => /GitHub (401|403)\b/.test(String((e && e.message) || e));
+function enterApp(){
   $("gate").classList.add("hidden");
   $("app").classList.remove("hidden");
   $("btn-disconnect").classList.remove("hidden");
+}
+function showGate(msg){
+  $("app").classList.add("hidden");
+  $("btn-disconnect").classList.add("hidden");
+  $("gate").classList.remove("hidden");
+  if (msg) setMsg("gate-msg", msg, "err");
+}
+function tokenRejected(){
+  try { localStorage.removeItem("yt_pipeline_token"); } catch (e) {}
+  token = "";
+  showGate("That token was rejected — paste a new one.");
+}
+async function connect(tok){
+  token = tok;
+  try { localStorage.setItem("yt_pipeline_token", token); } catch (e) {}
+  enterApp(); // a stored token skips the gate entirely; data loads behind it
+  try { await gh(`/repos/${OWNER}/${REPO}`); } // validates the token
+  catch (e) {
+    if (isAuthError(e)) return; // 401/403: gh() already showed the gate
+    showGate("Could not connect: " + e.message); // token kept; retry on next load
+    return;
+  }
   await loadAll();
 }
 $("btn-connect").addEventListener("click", async () => {
@@ -294,7 +316,10 @@ $("btn-connect").addEventListener("click", async () => {
   if (!tok) return setMsg("gate-msg", "Paste the token first.", "err");
   $("btn-connect").disabled = true;
   try { await connect(tok); }
-  catch (e) { setMsg("gate-msg", "Could not connect: " + e.message, "err"); }
+  catch (e) {
+    if (isAuthError(e)) setMsg("gate-msg", "That token was rejected — paste a new one.", "err");
+    else setMsg("gate-msg", "Could not connect: " + e.message, "err");
+  }
   $("btn-connect").disabled = false;
 });
 $("btn-disconnect").addEventListener("click", () => {
@@ -634,14 +659,26 @@ $("howto-mode").addEventListener("change", renderHowto);
 
 /* ---------- init ---------- */
 (function init(){
+  // Fragment hand-off: "#t=<token>" carries the token between devices.
+  // Save it, then strip the fragment from the URL before anything else.
+  if (location.hash.startsWith("#t=")){
+    const t = location.hash.slice(3);
+    history.replaceState(null, "", location.pathname + location.search);
+    if (t){
+      token = t;
+      try { localStorage.setItem("yt_pipeline_token", t); } catch (e) {}
+    }
+  }
   const sel = $("add-channel");
   sel.innerHTML = CHANNELS.map(c =>
     `<option value="${c.slug}">${esc(c.name)} (${esc(c.handle)})</option>`
   ).join("");
   renderHowto();
   if (token) connect(token).catch(e => {
-    localStorage.removeItem("yt_pipeline_token");
-    setMsg("gate-msg", "Saved token was rejected: " + e.message, "err");
+    // 401/403 already routed to the gate by gh()/connect(); anything else
+    // (e.g. no network) keeps the saved token and just reports.
+    if (!isAuthError(e))
+      setMsg("status-msg", "Could not reach GitHub: " + e.message, "err");
   });
 })();
 async function loadAll(){
