@@ -68,6 +68,8 @@
   .bar{height:10px;background:var(--panel);border:1px solid var(--border);
     border-radius:6px;margin-top:14px;overflow:hidden}
   .barfill{height:100%;background:var(--green)}
+  .jobbar .barfill{background:var(--accent)}
+  .jobprog{margin-top:10px}
   .up{list-style:none;padding-left:0}
   .up li{margin:10px 0}
   .uplink{display:flex;gap:14px;align-items:center;color:var(--text);text-decoration:none;flex-wrap:wrap}
@@ -545,6 +547,14 @@ function renderStatus(s){
         <b>Next open:</b> ${c.next_open_topic
           ? "#" + c.next_open_topic.number + " — " + esc(c.next_open_topic.title) : "—"}
       </div>
+      ${c.active_job ? `<div class="jobprog">
+        <div class="kv"><b>Now producing:</b> #${c.active_job.funnel_no} — ${esc(c.active_job.title)}</div>
+        <div class="bar jobbar"><div class="barfill" style="width:${c.active_job.percent == null ? 0 : c.active_job.percent}%"></div></div>
+        <div class="sub">${esc(c.active_job.stage_label || c.active_job.stage || "")}${c.active_job.scenes_total ? ` · scenes ${c.active_job.scenes_done || 0}/${c.active_job.scenes_total}` : ""} — <b>${c.active_job.percent == null ? "failed" : c.active_job.percent + "%"}</b></div>
+      </div>` : ""}
+      ${(c.queued_jobs && c.queued_jobs.length) ? `<div class="kv"><b>Queued videos</b></div>
+      <ul class="up">${c.queued_jobs.map(j =>
+        `<li>#${j.funnel_no} — ${esc(j.title)} <span class="sub">· Queued — 0%</span></li>`).join("")}</ul>` : ""}
       ${ups ? `<div class="kv"><b>Uploaded videos</b></div><ul class="up">${ups}</ul>`
             : `<div class="kv">No uploads yet — the first approved video will appear here.</div>`}
     </div>`;
