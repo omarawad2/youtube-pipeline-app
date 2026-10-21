@@ -89,7 +89,8 @@
   <header>
     <div>
       <h1>YouTube Pipeline — Live Dashboard</h1>
-      <div class="sub">Updated 2026-10-21 18:51 ET</div>
+      <div class="sub">Updated 2026-10-21 18:54 ET</div>
+      <div class="sub hidden" id="hdr-refresh"><button id="btn-refresh" class="secondary">Refresh</button> <span id="last-refreshed">Last refreshed: —</span></div>
       <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code>, <code>channel_requests.json</code> and <code>approvals.json</code> there.</div>
     </div>
     <button id="btn-disconnect" class="secondary hidden">Disconnect</button>
@@ -167,7 +168,6 @@
     <section id="sec-status">
       <h2>3 · Channel status</h2>
       <div class="row" style="align-items:center">
-        <button id="btn-refresh" class="secondary">Refresh</button>
         <span class="sub" id="status-gen"></span>
       </div>
       <div class="msg" id="status-msg"></div>
@@ -349,10 +349,12 @@ function enterApp(){
   $("gate").classList.add("hidden");
   $("app").classList.remove("hidden");
   $("btn-disconnect").classList.remove("hidden");
+  $("hdr-refresh").classList.remove("hidden");
 }
 function showGate(msg){
   $("app").classList.add("hidden");
   $("btn-disconnect").classList.add("hidden");
+  $("hdr-refresh").classList.add("hidden");
   $("gate").classList.remove("hidden");
   if (msg) setMsg("gate-msg", msg, "err");
 }
@@ -728,7 +730,7 @@ function updateAutoRefresh(){
   const running = !!(lastStatus && lastStatus.pipeline_state &&
     lastStatus.pipeline_state.state === "running");
   if (running && !autoTimer)
-    autoTimer = setInterval(() => { refreshStatus(); }, 60000);
+    autoTimer = setInterval(() => { refreshAll(); }, 60000);
   if (!running && autoTimer){
     clearInterval(autoTimer); autoTimer = null;
   }
@@ -739,6 +741,7 @@ async function refreshStatus(){
     const f = await getFile("status.json");
     renderStatus(JSON.parse(f.text));
     setMsg("status-msg", "", "");
+    noteRefreshed();
   } catch (e) {
     if (String(e.message).includes("404"))
       setMsg("status-msg",
@@ -747,8 +750,25 @@ async function refreshStatus(){
       setMsg("status-msg", "Could not load status: " + e.message, "err");
   }
 }
-$("btn-refresh").addEventListener("click",
-  async () => { await refreshStatus(); await loadRequestsQuiet(); });
+function noteRefreshed(){
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  const el = $("last-refreshed");
+  if (el) el.textContent = "Last refreshed: " +
+    p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+}
+let refreshing = false;
+async function refreshAll(){
+  if (refreshing) return; // double-taps / overlapping auto-refetch don't stack
+  refreshing = true;
+  const btn = $("btn-refresh");
+  if (btn){ btn.disabled = true; btn.textContent = "Refreshing\u2026"; }
+  try { await loadAll(); noteRefreshed(); }
+  finally {
+    refreshing = false;
+    if (btn){ btn.disabled = false; btn.textContent = "Refresh"; }
+  }
+}
+$("btn-refresh").addEventListener("click", refreshAll);
 
 /* ---------- pipeline control ---------- */
 function renderSchedule(){
