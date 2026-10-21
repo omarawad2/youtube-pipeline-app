@@ -645,8 +645,8 @@ function renderApprovals(){
         <b>Feedback rounds used:</b> ${rounds} of 3
       </div>
       ${fb}
-      ${d.review_url
-        ? `<div class="kv"><a href="${esc(d.review_url)}" target="_blank" ` +
+      ${(d.watch_url || d.review_url)
+        ? `<div class="kv"><a href="${esc(d.watch_url || d.review_url)}" target="_blank" ` +
           `rel="noopener">▶ Watch the review copy</a></div>` : ""}
       ${sent
         ? `<div class="msg ok">Sent — the pipeline will pick this up shortly.</div>`
