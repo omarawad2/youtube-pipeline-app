@@ -203,10 +203,14 @@
       </div>
       <div class="row" style="margin-top:10px">
         <button id="btn-start">Start</button>
-        <button id="btn-manual">Manual trigger</button>
         <button id="btn-stop" class="danger">Stop</button>
       </div>
       <div class="msg" id="ctl-msg"></div>
+      <label style="margin-top:16px">Manual trigger</label>
+      <div class="row">
+        <button id="btn-manual">Manual trigger</button>
+      </div>
+      <div class="msg" id="manual-msg"></div>
       <label style="margin-top:16px">Auto-approve</label>
       <div class="row">
         <button id="btn-auto" class="go">ON</button>
@@ -764,6 +768,28 @@ $("appr-list").addEventListener("click", async e => {
 });
 
 /* ---------- live pipeline state + token quota (control section) --- */
+let launchFull = null, launchArt = null; // queue/colab-launch-*.json markers
+const COLAB_URLS = {
+  full: "https://colab.research.google.com/github/omarawad2/youtube-channels/blob/main/run_colab.ipynb",
+  art: "https://colab.research.google.com/github/omarawad2/youtube-channels/blob/main/run_colab_art.ipynb"
+};
+async function refreshLaunchMarkers(){
+  const jobs = [["queue/colab-launch-full.json", "full"], ["queue/colab-launch-art.json", "art"]];
+  for (const [path, which] of jobs){
+    try { const f = await getFile(path); const m = JSON.parse(f.text);
+      if (which === "full") launchFull = m; else launchArt = m; }
+    catch (e) { if (which === "full") launchFull = null; else launchArt = null; }
+  }
+}
+function sessionLinkLine(){
+  const mode = control && control.mode;
+  if (mode !== "colab" && mode !== "hybrid") return "";
+  const marker = mode === "colab" ? launchFull : launchArt;
+  const url = (marker && marker.url) || COLAB_URLS[mode === "colab" ? "full" : "art"];
+  const when = marker && marker.launched_at ? " · link recorded " + esc(fmtET(marker.launched_at)) : "";
+  const what = mode === "colab" ? "Colab session" : "Colab art session";
+  return `<br><b>${what}:</b> <a href="${esc(url)}" target="_blank" rel="noopener">Open notebook \u2192</a>${when}`;
+}
 function renderPipelineState(){
   const el = $("pipe-state");
   if (!el) return;
@@ -776,6 +802,7 @@ function renderPipelineState(){
     `channel ${esc(ps.current_channel ? channelName(ps.current_channel) : "—")} · ` +
     `stage ${esc(ps.stage || "—")} · progress ${esc(prog)} · ` +
     `started ${esc(fmtET(ps.started_at))}` +
+    sessionLinkLine() +
     (ps.notice ? `<div class="warn">${esc(ps.notice)}</div>` : "");
 }
 function renderQuota(){
@@ -816,6 +843,7 @@ async function refreshStatus(){
   try {
     const f = await getFile("status.json");
     renderStatus(JSON.parse(f.text));
+    refreshLaunchMarkers().then(() => renderPipelineState()).catch(() => {});
     setMsg("status-msg", "", "");
     noteRefreshed();
   } catch (e) {
@@ -953,9 +981,9 @@ $("btn-manual").addEventListener("click", async () => {
     await writeControl(
       {manual_trigger: {at: now.toISOString(), id: uuid()}},
       `Dashboard: manual trigger (one-off pass, schedule untouched)`);
-    setMsg("ctl-msg",
+    setMsg("manual-msg",
       `Manual trigger filed — one pass (one video per channel) will run outside the schedule. The 3-day loop is untouched.`, "ok");
-  } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
+  } catch (e) { setMsg("manual-msg", "Failed: " + e.message, "err"); }
   $("btn-manual").disabled = false;
 });
 $("btn-stop").addEventListener("click", async () => {
