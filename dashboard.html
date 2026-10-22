@@ -30,6 +30,7 @@
     padding:14px 24px;font-size:14px;cursor:pointer}
   button.secondary{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
   button.danger{background:var(--red)}
+  button.go{background:var(--green)}
   button:disabled{opacity:.5;cursor:default}
   .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
   .grow{flex:1;min-width:min(320px,100%)}
@@ -192,6 +193,12 @@
         <button id="btn-stop" class="danger">Stop</button>
       </div>
       <div class="msg" id="ctl-msg"></div>
+      <label style="margin-top:16px">Auto-approve</label>
+      <div class="row">
+        <button id="btn-auto" class="go">ON</button>
+      </div>
+      <div class="kv" id="auto-state" style="margin-top:6px">Auto-approve: —</div>
+      <div class="msg" id="auto-msg"></div>
       <p class="note">Run starts production now and sets the loop: a run every 3 days at this same time until you stop it.</p>
       <p class="note"><b>Start</b> does not create a separate manual pipeline: it sets the pipeline enabled in the
         chosen mode, anchors the 3-day loop at the moment you press it, and files a start request that the watcher
@@ -202,7 +209,8 @@
         Start: the watcher prepares everything, opens the Colab session, runs and monitors it, and picks up the
         finished videos — nothing else is needed from you except possibly a Google sign-in code, which is handled
         in chat, never on this page. <b>hybrid</b>'s Colab art session is driven the same way. YouTube uploads
-        always wait for your per-video approval — in chat, or under “Pending your approval” below.</p>
+        wait for your per-video approval — in chat, or under “Pending your approval” below — unless
+        auto-approve is on.</p>
     </section>
 
     <!-- ============ 5. PENDING APPROVALS ============ -->
@@ -210,7 +218,7 @@
       <h2>5 · Pending your approval</h2>
       <div id="appr-list"></div>
       <div class="msg" id="appr-msg"></div>
-      <p class="note"><b>Approve</b> uploads the video to YouTube (unlisted) and marks the funnel topic done.
+      <p class="note"><b>Approve</b> uploads the video to YouTube (public) and marks the funnel topic done.
         <b>Reject</b> discards the render and returns the topic to Open. <b>Feedback</b> regenerates the video
         with your note as a binding production instruction — up to 3 feedback rounds per topic. Decisions are
         appended to <code>approvals.json</code>; the watcher picks them up and acts on them.</p>
@@ -828,6 +836,22 @@ function renderControl(){
     `input[name="mode"][value="${control.mode}"]`);
   if (radio) radio.checked = true;
   renderSchedule();
+  renderAutoApprove();
+}
+function renderAutoApprove(){
+  const btn = $("btn-auto"), st = $("auto-state");
+  if (!btn || !st) return;
+  const on = !!(control && control.auto_approve);
+  // The button shows the ACTION it performs: while OFF it is green
+  // and says ON (press to turn on); while ON it is red and says OFF.
+  btn.textContent = on ? "OFF" : "ON";
+  btn.className = on ? "danger" : "go";
+  btn.disabled = !control;
+  st.innerHTML = !control
+    ? "Auto-approve: —"
+    : on
+      ? "<b>Auto-approve: ON</b> — new videos are approved and published automatically"
+      : "<b>Auto-approve: OFF</b> — new videos wait for your approval";
 }
 async function loadControl(){
   const f = await getFile("control.json");
@@ -871,6 +895,19 @@ $("btn-stop").addEventListener("click", async () => {
   } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
   $("btn-stop").disabled = false;
 });
+$("btn-auto").addEventListener("click", async () => {
+  if (!control) return;
+  const target = !control.auto_approve;
+  $("btn-auto").disabled = true;
+  try {
+    await writeControl({auto_approve: target},
+      `Dashboard: auto-approve ${target ? "on" : "off"}`);
+    setMsg("auto-msg", target
+      ? "Auto-approve is ON — grader-passed videos will be approved and published automatically."
+      : "Auto-approve is OFF — new videos will wait for your approval.", "ok");
+  } catch (e) { setMsg("auto-msg", "Failed: " + e.message, "err"); }
+  renderAutoApprove();
+});
 async function loadRequestsQuiet(){
   try { const {list} = await getRequests(); renderRequests(list); }
   catch (e) { /* list stays as-is */ }
@@ -883,7 +920,7 @@ const HOWTO = {
     "The agent researches and writes the script, then queues the job (scripts/make_jobs.py).",
     "./run_muse.sh drains the queue entirely on this VM: scenes → cartoon-kit art drawn on the VM (~1s/scene) → TTS → slideshow render + QA grader loop.",
     "Finished videos go to the review host; the agent delivers them in chat.",
-    "You approve per video — only then does upload.py upload (forced unlisted) and mark the funnel topic done.",
+    "You approve per video — only then does upload.py upload it PUBLIC and mark the funnel topic done. (With auto-approve on, grader-passed videos publish automatically.)",
     "Cron: the Tue/Sat production passes run this mode end-to-end on the VM — no Colab step, and a pass never stalls on art."
   ],
   colab: [
@@ -891,7 +928,7 @@ const HOWTO = {
     "Press Start above with mode = colab — that is the whole interaction. The pipeline prepares everything, then drives the Colab session end-to-end for you: it opens the session, runs the notebook, monitors it until it drains and disconnects, and picks up the finished videos.",
     "You never open the notebook, click Run all, or paste anything. Per job, in the session: SDXL scene art on the T4 → Edge TTS → render + QA grading → mp4 to the review host. Drain-and-exit, ~$1/video.",
     "The only step that can come back to you is a Google sign-in code (a fresh password / 2-Step challenge) — that is handled in chat, never on this dashboard.",
-    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads only after approval (forced unlisted) and marks the topic done."
+    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)"
   ],
   hybrid: [
     "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
@@ -899,7 +936,7 @@ const HOWTO = {
     "./run_hybrid.sh on the VM builds each job's scene manifest; jobs whose art is complete render here immediately (same engine as muse).",
     "Jobs missing art register an art-queue batch, and the Colab art session is driven automatically (opened, run and monitored like a colab run) — it drains the art queue and pushes. A Google sign-in code, if one is demanded, is handled in chat.",
     "The run then downloads each finished art bundle, verifies every scene (count + sha256), and renders + grades on the VM. (Bundles expire in ~6 days — don't sit on them.)",
-    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads only after approval (forced unlisted) and marks the topic done.",
+    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)",
     "Cron: a VM cron pass can run hybrid the same way (guard → jobs → run_hybrid.sh, which drives the art session)."
   ]
 };
