@@ -170,6 +170,7 @@
       <h2>3 · Channel status</h2>
       <div class="row" style="align-items:center">
         <span class="sub" id="status-gen"></span>
+        <span class="sub" id="analytics-asof"></span>
       </div>
       <div class="msg" id="status-msg"></div>
       <div class="grid" id="status-grid" style="margin-top:10px"></div>
@@ -536,10 +537,45 @@ function vidId(u){
   const m = String(u.url || "").match(/(?:youtu\.be\/|[?&]v=)([\w-]{6,})/);
   return m ? m[1] : "";
 }
+function fmtNum(v){
+  return v == null ? "—" : Number(v).toLocaleString("en-US");
+}
+function fmtMoney(v){
+  return v == null ? "—" : "$" + Number(v).toLocaleString("en-US",
+    {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+function fmtPct(v){
+  if (v == null) return "—";
+  const n = Number(v);
+  return (n > 0 ? "+" : "") + n.toFixed(1) + "%";
+}
+function analyticsBlock(c){
+  const a = c.analytics;
+  if (!a) return "";
+  const g = a.growth || {}, t = a.totals || {};
+  let h = `<div class="kv"><b>Analytics</b></div>
+      <div class="stats">
+        <div class="stat"><div class="num">${fmtNum(a.views_30d)}</div><div class="lab">Views (30d)</div></div>
+        <div class="stat"><div class="num">${fmtNum(a.views_ytd)}</div><div class="lab">Views (YTD)</div></div>
+        <div class="stat"><div class="num">${fmtNum(a.subs_30d_net)}</div><div class="lab">Subs net (30d)</div></div>
+        <div class="stat"><div class="num">${fmtNum(a.subs_ytd_net)}</div><div class="lab">Subs net (YTD)</div></div>
+        <div class="stat"><div class="num">${fmtMoney(a.revenue_30d)}</div><div class="lab">Revenue (30d)</div></div>
+        <div class="stat"><div class="num">${fmtMoney(a.revenue_ytd)}</div><div class="lab">Revenue (YTD)</div></div>
+      </div>
+      <div class="kv"><b>Growth vs last month:</b> views ${fmtPct(g.views_pct)} · subs ${fmtPct(g.subs_pct)} · revenue ${fmtPct(g.revenue_pct)}</div>`;
+  if (a.source === "lifetime-only")
+    h += `<div class="kv"><b>Lifetime:</b> ${fmtNum(t.views)} views · ${fmtNum(t.subs)} subs · ${fmtNum(t.videos)} videos<br>` +
+      `30-day / YTD / revenue unlock after analytics access is granted.</div>`;
+  if (a.stale)
+    h += `<div class="sub">Latest fetch failed — showing the last good numbers.</div>`;
+  return h;
+}
 function renderStatus(s){
   lastStatus = s;
   $("status-gen").textContent =
     "status.json built " + fmtET(s.generated_at);
+  $("analytics-asof").textContent = s.analytics_as_of
+    ? " · analytics as of " + s.analytics_as_of : "";
   $("status-grid").innerHTML = (s.channels || []).map(c => {
     const q = c.queue || {pending: 0, claimed: 0};
     let pill;
@@ -586,6 +622,7 @@ function renderStatus(s){
         <b>Next open:</b> ${c.next_open_topic
           ? "#" + c.next_open_topic.number + " — " + esc(c.next_open_topic.title) : "—"}
       </div>
+      ${analyticsBlock(c)}
       ${c.active_job ? `<div class="jobprog">
         <div class="kv"><b>Now producing:</b> #${c.active_job.funnel_no} — ${esc(c.active_job.title)}</div>
         <div class="bar jobbar"><div class="barfill" style="width:${c.active_job.percent == null ? 0 : c.active_job.percent}%"></div></div>
