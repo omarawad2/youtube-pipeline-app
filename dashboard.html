@@ -622,6 +622,8 @@ function renderStatus(s){
         <b>Next open:</b> ${c.next_open_topic
           ? "#" + c.next_open_topic.number + " — " + esc(c.next_open_topic.title) : "—"}
       </div>
+      ${(c.slug === "sikkat-al-flous" || c.slug === "sikkat-al-hijra")
+        ? `<div class="kv"><b>Language:</b> Arabic only — content, captions, title &amp; description. English is translated, never uploaded.</div>` : ""}
       ${analyticsBlock(c)}
       ${c.active_job ? `<div class="jobprog">
         <div class="kv"><b>Now producing:</b> #${c.active_job.funnel_no} — ${esc(c.active_job.title)}</div>
