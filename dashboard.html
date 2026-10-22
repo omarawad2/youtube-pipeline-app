@@ -157,10 +157,22 @@
         <button id="btn-channel">Add channel</button>
       </div>
       <div class="msg" id="ch-msg"></div>
-      <p class="note">Everything syncs automatically — funnel section, channel registry, status card —
-        <b>including the Google consent grant</b>: adding a channel here is your approval for its full wiring,
-        and the consent runs automatically. The only step that can come back to you is a fresh Google security
-        challenge (password / 2-Step code) — the request then shows <b>awaiting-signin</b> and you'll get a
+      <ol class="steps">
+        <li><b>Create the channel on YouTube</b> — by hand, in
+          <a href="https://studio.youtube.com/" target="_blank" rel="noopener">YouTube Studio</a>:
+          sign in as the Google account that owns your other channels → your profile picture (top right) →
+          <i>Create a channel</i> → pick the name and handle. <b>This step cannot be automated — YouTube offers
+          no API for creating channels</b> — so it is yours to do, and it takes about a minute.</li>
+        <li><b>Auth + wire it to the pipeline</b> — automatic: paste the new channel's handle or URL above and
+          press <b>Add channel</b>. That is your approval for its full wiring; the pipeline resolves the channel,
+          registers it, creates its funnel section, and runs the Google consent grant by itself.</li>
+        <li><b>Join the generate schedule</b> — automatic: new channels join the existing 3-day loop immediately;
+          nothing to configure. The next scheduled pass (or your next Start / Manual trigger) includes it.</li>
+        <li><b>New channel section</b> — automatic: a funnel section, registry entry, status card, and analytics
+          block appear for the channel as soon as wiring completes.</li>
+      </ol>
+      <p class="note">The only step that can come back to you is a fresh Google security challenge during the
+        consent grant (password / 2-Step code) — the request then shows <b>awaiting-signin</b> and you'll get a
         message in chat.</p>
       <div id="ch-list"></div>
     </section>
@@ -191,6 +203,7 @@
       </div>
       <div class="row" style="margin-top:10px">
         <button id="btn-start">Start</button>
+        <button id="btn-manual">Manual trigger</button>
         <button id="btn-stop" class="danger">Stop</button>
       </div>
       <div class="msg" id="ctl-msg"></div>
@@ -206,12 +219,17 @@
         consumes by running the standard orchestrator pass. The watcher fires each due run after that and advances
         the loop. <b>Choosing a mode + Start supersedes any run of another mode</b>: only one mode is ever active, and
         in-flight runs of other modes stop. <b>Stop</b> disables the pipeline (due runs and scheduled passes skip).</p>
-      <p class="note">Mode notes: <b>muse</b> runs fully on the VM. <b>colab</b> is fully driven by pressing
-        Start: the watcher prepares everything, opens the Colab session, runs and monitors it, and picks up the
-        finished videos — nothing else is needed from you except possibly a Google sign-in code, which is handled
-        in chat, never on this page. <b>hybrid</b>'s Colab art session is driven the same way. YouTube uploads
-        wait for your per-video approval — in chat, or under “Pending your approval” below — unless
-        auto-approve is on.</p>
+      <p class="note"><b>Manual trigger</b> runs one pass right now — one video per channel — <b>outside</b>
+        the 3-day loop: the schedule keeps its existing next run, untouched. The session launches when jobs are
+        queued for the current mode; if nothing is queued yet, the request waits and the dashboard note says so
+        (the agent prepares scripts when tokens allow). Colab/hybrid sessions are runner-driven: open the notebook
+        link, sign in, pick the T4 GPU, Run all — the finished videos register themselves under
+        “Pending your approval”. Nothing here needs the Muse app.</p>
+      <p class="note">Mode notes: <b>muse</b> runs fully on the VM (needs the agent). <b>colab</b>/<b>hybrid</b> are
+        detached from the Muse app — the control loop lives in GitHub Actions and the session is driven by you (or
+        your self-hosted runner): open the notebook link, Run all, paste the GitHub token when asked. A Google
+        sign-in challenge is handled in chat, never on this page. YouTube uploads wait for your per-video approval
+        — in chat, or under “Pending your approval” below — unless auto-approve is on.</p>
     </section>
 
     <!-- ============ 5. PENDING APPROVALS ============ -->
@@ -870,6 +888,8 @@ function renderControl(){
     `<b>Last change:</b> ${esc(fmtET(control.updated_at))} by ${esc(control.updated_by || "—")}<br>` +
     `<b>Start request:</b> ${control.start_request
         ? "pending — filed " + esc(fmtET(control.start_request.at)) : "none"}<br>` +
+    `<b>Manual trigger:</b> ${control.manual_trigger
+        ? "pending — filed " + esc(fmtET(control.manual_trigger.at)) : "none"}<br>` +
     `<b>Watcher note:</b> ${esc(control.watcher_note || "—")}`;
   const radio = document.querySelector(
     `input[name="mode"][value="${control.mode}"]`);
@@ -926,6 +946,18 @@ $("btn-start").addEventListener("click", async () => {
   } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
   $("btn-start").disabled = false;
 });
+$("btn-manual").addEventListener("click", async () => {
+  $("btn-manual").disabled = true;
+  try {
+    const now = new Date();
+    await writeControl(
+      {manual_trigger: {at: now.toISOString(), id: uuid()}},
+      `Dashboard: manual trigger (one-off pass, schedule untouched)`);
+    setMsg("ctl-msg",
+      `Manual trigger filed — one pass (one video per channel) will run outside the schedule. The 3-day loop is untouched.`, "ok");
+  } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
+  $("btn-manual").disabled = false;
+});
 $("btn-stop").addEventListener("click", async () => {
   $("btn-stop").disabled = true;
   try {
@@ -964,19 +996,20 @@ const HOWTO = {
   ],
   colab: [
     "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
-    "Press Start above with mode = colab — that is the whole interaction. The pipeline prepares everything, then drives the Colab session end-to-end for you: it opens the session, runs the notebook, monitors it until it drains and disconnects, and picks up the finished videos.",
-    "You never open the notebook, click Run all, or paste anything. Per job, in the session: SDXL scene art on the T4 → Edge TTS → render + QA grading → mp4 to the review host. Drain-and-exit, ~$1/video.",
-    "The only step that can come back to you is a Google sign-in code (a fresh password / 2-Step challenge) — that is handled in chat, never on this dashboard.",
-    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)"
+    "Press Start or Manual trigger with mode = colab. The pipeline's control loop (GitHub Actions, zero Muse tokens) consumes the request and records a Colab session link — the dashboard note shows the notebook URL.",
+    "You (or your self-hosted runner) drive the session: open the notebook link, sign in to Google, set Runtime → Change runtime type → T4 GPU, then Runtime → Run all. Paste the GitHub token when asked (session-only).",
+    "Per job, in the session: SDXL scene art on the T4 → Edge TTS → render + QA grading → mp4 to the review host. The notebook then registers the finished video as a delivery (pending approval) itself and stops its runtime. Drain-and-exit, ~$1/video.",
+    "A Google sign-in challenge is the only step that can come back to you — handled in chat, never on this page.",
+    "Finished videos land under “Pending your approval” above with a streaming Watch link; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)"
   ],
   hybrid: [
     "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
     "The agent researches + writes scripts, queues jobs (make_jobs.py) and pushes.",
     "./run_hybrid.sh on the VM builds each job's scene manifest; jobs whose art is complete render here immediately (same engine as muse).",
-    "Jobs missing art register an art-queue batch, and the Colab art session is driven automatically (opened, run and monitored like a colab run) — it drains the art queue and pushes. A Google sign-in code, if one is demanded, is handled in chat.",
+    "Jobs missing art register an art-queue batch, and the Colab art session link is recorded (start_colab.py --mode art --link-only) — you open it, Run all, paste the token; it drains the art queue and pushes. No Muse browser drives it.",
     "The run then downloads each finished art bundle, verifies every scene (count + sha256), and renders + grades on the VM. (Bundles expire in ~6 days — don't sit on them.)",
     "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)",
-    "Cron: a VM cron pass can run hybrid the same way (guard → jobs → run_hybrid.sh, which drives the art session)."
+    "Note: hybrid's VM half (render/QA) still needs the agent; its Colab art half is fully detached."
   ]
 };
 function renderHowto(){
