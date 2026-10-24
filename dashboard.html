@@ -92,7 +92,7 @@
       <h1>YouTube Pipeline — Live Dashboard</h1>
       <div class="sub">Updated 2026-10-21 19:21 ET</div>
       <div class="sub hidden" id="hdr-refresh"><button id="btn-refresh" class="secondary">Refresh</button> <span id="last-refreshed">Last refreshed: —</span></div>
-      <div class="sub">The private repo <code>omarawad2/youtube-channels</code> is the wire: this page reads &amp; writes <code>funnel.md</code>, <code>status.json</code>, <code>control.json</code>, <code>channel_requests.json</code> and <code>approvals.json</code> there.</div>
+      <div class="sub">10 channels · Daily pass at 1:00 AM ET · Approval = publish</div>
     </div>
     <button id="btn-disconnect" class="secondary hidden">Disconnect</button>
   </header>
@@ -106,11 +106,8 @@
       <button id="btn-connect">Connect</button>
     </div>
     <div class="msg" id="gate-msg"></div>
-    <p class="note">The token is stored only in this browser's localStorage and is sent only to
-      <code>api.github.com</code>. It never transits any other server. Disconnect erases it.
-      Create one at github.com → Settings → Developer settings → Personal access tokens →
-      Fine-grained tokens, with Repository access limited to <code>youtube-channels</code>.</p>
-      <p class="note">Tip: open this page in Safari and use Share → Add to Home Screen — it will stay connected on this device.</p>
+    <p class="note">Token stays in this browser only, sent only to api.github.com. Disconnect erases it. Create one at github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens (youtube-channels only).</p>
+      <p class="note">Tip: Safari → Share → Add to Home Screen keeps you connected.</p>
   </section>
 
   <div id="app" class="hidden">
@@ -130,9 +127,7 @@
         <button id="btn-add">Add topic</button>
       </div>
       <div class="msg" id="add-msg"></div>
-      <p class="note">Country topics → pick their channel. A non-country stocks/RE topic added here goes to the
-        picked channel, and the pipeline cross-files it to the other two investing channels on its next pass.
-        The topic gets the next free serial number and lands at the end of that channel's “Open topics”.</p>
+      <p class="note">Country topic → its channel. Other stocks/RE topics are cross-filed to the other investing channels on the next pass.</p>
     </section>
 
     <!-- ============ ADD A CHANNEL ============ -->
@@ -158,22 +153,11 @@
       </div>
       <div class="msg" id="ch-msg"></div>
       <ol class="steps">
-        <li><b>Create the channel on YouTube</b> — by hand, in
-          <a href="https://studio.youtube.com/" target="_blank" rel="noopener">YouTube Studio</a>:
-          sign in as the Google account that owns your other channels → your profile picture (top right) →
-          <i>Create a channel</i> → pick the name and handle. <b>This step cannot be automated — YouTube offers
-          no API for creating channels</b> — so it is yours to do, and it takes about a minute.</li>
-        <li><b>Auth + wire it to the pipeline</b> — automatic: paste the new channel's handle or URL above and
-          press <b>Add channel</b>. That is your approval for its full wiring; the pipeline resolves the channel,
-          registers it, creates its funnel section, and runs the Google consent grant by itself.</li>
-        <li><b>Join the generate schedule</b> — automatic: new channels join the existing 3-day loop immediately;
-          nothing to configure. The next scheduled pass (or your next Start / Manual trigger) includes it.</li>
-        <li><b>New channel section</b> — automatic: a funnel section, registry entry, status card, and analytics
-          block appear for the channel as soon as wiring completes.</li>
+        <li><b>Create the channel in YouTube Studio</b> (by hand — no API exists for this).</li>
+        <li><b>Add it here</b> — paste its handle or URL, press Add channel. Wiring + Google consent are automatic.</li>
+        <li><b>It joins the daily 1:00 AM loop</b> automatically. No other setup.</li>
       </ol>
-      <p class="note">The only step that can come back to you is a fresh Google security challenge during the
-        consent grant (password / 2-Step code) — the request then shows <b>awaiting-signin</b> and you'll get a
-        message in chat.</p>
+      <p class="note">If Google asks for a fresh sign-in during consent, the request shows “awaiting-signin” and you get a chat message.</p>
       <div id="ch-list"></div>
     </section>
 
@@ -209,31 +193,20 @@
       <label style="margin-top:16px">Manual trigger</label>
       <div class="row">
         <button id="btn-manual">Manual trigger</button>
+        <button id="btn-hybrid" class="secondary">Run hybrid now</button>
       </div>
       <div class="msg" id="manual-msg"></div>
+      <div class="msg" id="hybrid-msg"></div>
       <label style="margin-top:16px">Auto-approve</label>
       <div class="row">
         <button id="btn-auto" class="go">ON</button>
       </div>
       <div class="kv" id="auto-state" style="margin-top:6px">Auto-approve: —</div>
       <div class="msg" id="auto-msg"></div>
-      <p class="note">Run starts production now and sets the loop: a run every 3 days at this same time until you stop it.</p>
-      <p class="note"><b>Start</b> does not create a separate manual pipeline: it sets the pipeline enabled in the
-        chosen mode, anchors the 3-day loop at the moment you press it, and files a start request that the watcher
-        consumes by running the standard orchestrator pass. The watcher fires each due run after that and advances
-        the loop. <b>Choosing a mode + Start supersedes any run of another mode</b>: only one mode is ever active, and
-        in-flight runs of other modes stop. <b>Stop</b> disables the pipeline (due runs and scheduled passes skip).</p>
-      <p class="note"><b>Manual trigger</b> runs one pass right now — one video per channel — <b>outside</b>
-        the 3-day loop: the schedule keeps its existing next run, untouched. The session launches when jobs are
-        queued for the current mode; if nothing is queued yet, the request waits and the dashboard note says so
-        (the agent prepares scripts when tokens allow). Colab/hybrid sessions are runner-driven: open the notebook
-        link, sign in, pick the T4 GPU, Run all — the finished videos register themselves under
-        “Pending your approval”. Nothing here needs the Muse app.</p>
-      <p class="note">Mode notes: <b>muse</b> runs fully on the VM (needs the agent). <b>colab</b>/<b>hybrid</b> are
-        detached from the Muse app — the control loop lives in GitHub Actions and the session is driven by you (or
-        your self-hosted runner): open the notebook link, Run all, paste the GitHub token when asked. A Google
-        sign-in challenge is handled in chat, never on this page. YouTube uploads wait for your per-video approval
-        — in chat, or under “Pending your approval” below — unless auto-approve is on.</p>
+      <p class="note"><b>Start</b> arms the daily 1:00 AM loop in the chosen mode. <b>Stop</b> pauses it. Only one mode is ever active.</p>
+      <p class="note"><b>Manual trigger</b>: one pass now, schedule untouched.</p>
+      <p class="note"><b>Run hybrid now</b>: files a hybrid run. The VM half runs on the next pass; if scene art is missing, you still open the Colab art notebook and press Run all — that step is not automated.</p>
+      <p class="note">Uploads wait for your per-video approval below, unless auto-approve is on. Google sign-in challenges are handled in chat, never here.</p>
     </section>
 
     <!-- ============ 5. PENDING APPROVALS ============ -->
@@ -241,10 +214,26 @@
       <h2>5 · Pending your approval</h2>
       <div id="appr-list"></div>
       <div class="msg" id="appr-msg"></div>
-      <p class="note"><b>Approve</b> uploads the video to YouTube (public) and marks the funnel topic done.
-        <b>Reject</b> discards the render and returns the topic to Open. <b>Feedback</b> regenerates the video
-        with your note as a binding production instruction — up to 3 feedback rounds per topic. Decisions are
-        appended to <code>approvals.json</code>; the watcher picks them up and acts on them.</p>
+      <p class="note"><b>Approve</b> = upload PUBLIC + topic done. <b>Reject</b> = topic back to Open. <b>Feedback</b> = regenerate (max 3 rounds).</p>
+    </section>
+
+    <!-- ============ TODO ============ -->
+    <section id="sec-todo">
+      <h2>TODO · Pipeline improvements</h2>
+      <div class="row">
+        <div class="grow">
+          <label for="todo-title">Idea</label>
+          <input type="text" id="todo-title" placeholder="e.g. Auto-retry a failed scene instead of failing the video">
+        </div>
+        <div class="grow">
+          <label for="todo-note">Note (optional)</label>
+          <input type="text" id="todo-note" placeholder="Why it matters, or how you want it done">
+        </div>
+        <button id="btn-todo">Add TODO</button>
+      </div>
+      <div class="msg" id="todo-msg"></div>
+      <div id="todo-list"></div>
+      <p class="note">Ideas here are saved to todos.json in the pipeline repo. They are a backlog only — nothing runs until you approve it in chat.</p>
     </section>
 
     <!-- ============ 6. HOW TO RUN ============ -->
@@ -272,7 +261,10 @@ const CHANNELS = [
   {slug:"sikkat-al-hijra", name:"سكة الهجرة", handle:"@سكةالهجرة"},
   {slug:"northbound-canada", name:"Northbound - Canada Immigration", handle:"@Northbound-CanadaImmigration"},
   {slug:"northbound-usa", name:"NorthBound - USA Immigration", handle:"@NorthBound-USAImmigration"},
-  {slug:"offer-letter", name:"The Offer Letter - Tech Careers", handle:"@TheOfferLetter-TechCareers"}
+  {slug:"offer-letter", name:"The Offer Letter - Tech Careers", handle:"@TheOfferLetter-TechCareers"},
+  {slug:"canadian-mortgages-with-ryan", name:"Canadian mortgages with Ryan", handle:""},
+  {slug:"us-mortgages-with-kevin", name:"US mortgages with Kevin", handle:""},
+  {slug:"psynch-deciphered", name:"Psynch Deciphered", handle:""}
 ];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g,
@@ -891,8 +883,9 @@ function renderSchedule(){
   if (sch && sch.next_run_at){
     el.innerHTML =
       `<b>Next scheduled run:</b> ${esc(fmtET(sch.next_run_at))} — ` +
-      `production pass (mode: ${esc(control.mode)}), then every ` +
-      `${esc(sch.every_days || 3)} days` +
+      `production pass (mode: ${esc(control.mode)})` +
+      (Number(sch.every_days) === 1 ? `, daily at 1:00 AM ET`
+        : `, then every ${esc(sch.every_days || 3)} days`) +
       ((lastStatus && lastStatus.schedule)
         ? `<br><b>Next special refresh:</b> ` +
           esc(fmtET(lastStatus.schedule.next_special_refresh)) : "");
@@ -961,16 +954,17 @@ $("btn-start").addEventListener("click", async () => {
   $("btn-start").disabled = true;
   try {
     const now = new Date();
-    const next = new Date(now.getTime());
-    next.setDate(next.getDate() + 3); // +3 calendar days, same local wall-clock time
+    const next = new Date(now);
+    next.setHours(1, 0, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1); // next 1:00 AM
     await writeControl(
       {enabled: true, mode,
        start_request: {at: now.toISOString(), id: uuid()},
-       schedule: {anchor_at: isoWithOffset(now), every_days: 3,
+       schedule: {anchor_at: isoWithOffset(next), every_days: 1,
                   next_run_at: isoWithOffset(next)}},
       `Dashboard: start pipeline (mode=${mode})`);
     setMsg("ctl-msg",
-      `Start filed — the watcher will run the orchestrator pass in ${mode} mode now, then every 3 days at this time.`, "ok");
+      `Start filed — the watcher will run the orchestrator pass in ${mode} mode now, then daily at 1:00 AM ET.`, "ok");
   } catch (e) { setMsg("ctl-msg", "Failed: " + e.message, "err"); }
   $("btn-start").disabled = false;
 });
@@ -1007,6 +1001,67 @@ $("btn-auto").addEventListener("click", async () => {
   } catch (e) { setMsg("auto-msg", "Failed: " + e.message, "err"); }
   renderAutoApprove();
 });
+$("btn-hybrid").addEventListener("click", async () => {
+  $("btn-hybrid").disabled = true;
+  try {
+    await writeControl(
+      {hybrid_run_request: {at: new Date().toISOString(), id: uuid()}},
+      "Dashboard: hybrid run requested");
+    setMsg("hybrid-msg",
+      "Hybrid run filed. The VM half runs on the next pass; if scene art is missing, open the Colab art notebook and press Run all — that step is not automated.", "ok");
+  } catch (e) { setMsg("hybrid-msg", "Failed: " + e.message, "err"); }
+  $("btn-hybrid").disabled = false;
+});
+
+/* ---------- TODO (todos.json backlog) ---------- */
+function renderTodos(list){
+  const el = $("todo-list");
+  if (!list.length) { el.innerHTML = '<p class="note">No TODOs yet.</p>'; return; }
+  el.innerHTML = list.map(td =>
+    `<div class="req"><span${td.status === "done" ? ' style="text-decoration:line-through;color:var(--muted)"' : ""}>${esc(td.title)}${td.note ? " — " + esc(td.note) : ""}</span>` +
+    (td.status === "done" ? `<span class="badge on">Done</span>`
+      : `<button class="secondary" data-todo-done="${esc(td.id)}">Done</button>`) + `</div>`).join("");
+  el.querySelectorAll("[data-todo-done]").forEach(b =>
+    b.addEventListener("click", async () => {
+      try {
+        await putWithRetry("todos.json", text => {
+          const arr = JSON.parse(text || "[]");
+          const it = arr.find(x => x.id === b.dataset.todoDone);
+          if (it) it.status = "done";
+          return JSON.stringify(arr, null, 1) + "\n";
+        }, "Dashboard: TODO done");
+        await loadTodos();
+      } catch (e) { setMsg("todo-msg", "Failed: " + e.message, "err"); }
+    }));
+}
+async function loadTodos(){
+  try {
+    const f = await getFile("todos.json");
+    renderTodos(JSON.parse(f.text || "[]"));
+  } catch (e) {
+    if (String(e.message).includes("404")) renderTodos([]);
+    else setMsg("todo-msg", "Could not load TODOs: " + e.message, "err");
+  }
+}
+$("btn-todo").addEventListener("click", async () => {
+  const title = $("todo-title").value.trim();
+  const note = $("todo-note").value.trim();
+  if (!title) { setMsg("todo-msg", "Type the idea first.", "err"); return; }
+  $("btn-todo").disabled = true;
+  try {
+    await putWithRetry("todos.json", text => {
+      const arr = JSON.parse(text || "[]");
+      arr.push({id: uuid(), title, note, status: "open",
+        created_at: new Date().toISOString()});
+      return JSON.stringify(arr, null, 1) + "\n";
+    }, "Dashboard: add TODO", {createText: "[]\n"});
+    $("todo-title").value = ""; $("todo-note").value = "";
+    setMsg("todo-msg", "TODO saved.", "ok");
+    await loadTodos();
+  } catch (e) { setMsg("todo-msg", "Failed: " + e.message, "err"); }
+  $("btn-todo").disabled = false;
+});
+
 async function loadRequestsQuiet(){
   try { const {list} = await getRequests(); renderRequests(list); }
   catch (e) { /* list stays as-is */ }
@@ -1020,24 +1075,18 @@ const HOWTO = {
     "./run_muse.sh drains the queue entirely on this VM: scenes → cartoon-kit art drawn on the VM (~1s/scene) → TTS → slideshow render + QA grader loop.",
     "Finished videos go to the review host; the agent delivers them in chat.",
     "You approve per video — only then does upload.py upload it PUBLIC and mark the funnel topic done. (With auto-approve on, grader-passed videos publish automatically.)",
-    "Cron: the Tue/Sat production passes run this mode end-to-end on the VM — no Colab step, and a pass never stalls on art."
+    "Daily 1:00 AM pass runs this mode end-to-end on the VM — no Colab step, and a pass never stalls on art."
   ],
   colab: [
-    "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
-    "Press Start or Manual trigger with mode = colab. The pipeline's control loop (GitHub Actions, zero Muse tokens) consumes the request and records a Colab session link — the dashboard note shows the notebook URL.",
-    "You (or your self-hosted runner) drive the session: open the notebook link, sign in to Google, set Runtime → Change runtime type → T4 GPU, then Runtime → Run all. Paste the GitHub token when asked (session-only).",
-    "Per job, in the session: SDXL scene art on the T4 → Edge TTS → render + QA grading → mp4 to the review host. The notebook then registers the finished video as a delivery (pending approval) itself and stops its runtime. Drain-and-exit, ~$1/video.",
-    "A Google sign-in challenge is the only step that can come back to you — handled in chat, never on this page.",
-    "Finished videos land under “Pending your approval” above with a streaming Watch link; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)"
+    "Add a topic in chat or above.",
+    "Press Start with mode = colab, then open the notebook link, sign in, pick the T4 GPU, and press Run all. Finished videos register themselves under Pending approval.",
+    "You approve per video — only then does upload.py upload PUBLIC and mark the topic done."
   ],
   hybrid: [
-    "Add topics: “Funnel: <idea>” in chat, or the Add Topic form above.",
-    "The agent researches + writes scripts, queues jobs (make_jobs.py) and pushes.",
-    "./run_hybrid.sh on the VM builds each job's scene manifest; jobs whose art is complete render here immediately (same engine as muse).",
-    "Jobs missing art register an art-queue batch, and the Colab art session link is recorded (start_colab.py --mode art --link-only) — you open it, Run all, paste the token; it drains the art queue and pushes. No Muse browser drives it.",
-    "The run then downloads each finished art bundle, verifies every scene (count + sha256), and renders + grades on the VM. (Bundles expire in ~6 days — don't sit on them.)",
-    "Finished videos land under “Pending your approval” above and are delivered in chat; you approve per video; upload.py uploads PUBLIC only after approval and marks the topic done. (With auto-approve on, they publish automatically.)",
-    "Note: hybrid's VM half (render/QA) still needs the agent; its Colab art half is fully detached."
+    "Add a topic in chat or above, or press “Run hybrid now” in Pipeline control.",
+    "The VM builds scene manifests and renders jobs whose art is complete.",
+    "Jobs missing art need you to open the Colab art notebook and press Run all — that step is not automated. The run then downloads, verifies, renders, and grades on the VM.",
+    "You approve per video — only then does upload.py upload PUBLIC and mark the topic done."
   ]
 };
 function renderHowto(){
@@ -1061,7 +1110,7 @@ $("howto-mode").addEventListener("change", renderHowto);
   }
   const sel = $("add-channel");
   sel.innerHTML = CHANNELS.map(c =>
-    `<option value="${c.slug}">${esc(c.name)} (${esc(c.handle)})</option>`
+    `<option value="${c.slug}">${esc(c.name)}${c.handle ? " (" + esc(c.handle) + ")" : ""}</option>`
   ).join("");
   renderHowto();
   if (token) connect(token).catch(e => {
@@ -1076,6 +1125,7 @@ async function loadAll(){
   try { await loadControl(); }
   catch (e) { setMsg("ctl-msg", "Could not load control.json: " + e.message, "err"); }
   await loadRequestsQuiet();
+  await loadTodos();
 }
 </script>
 </body>
